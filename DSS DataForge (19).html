@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSS Final Mile — DataForge</title>
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#22262f;--surface3:#2a2e3a;--border:#2e3340;--border-light:#3a3f4f;--text:#e8eaf0;--text-dim:#8b90a0;--text-muted:#5c6070;--accent:#5b8def;--accent-hover:#7aa4ff;--accent-bg:rgba(91,141,239,0.1);--green:#4ecb71;--green-bg:rgba(78,203,113,0.1);--red:#ef5b5b;--red-bg:rgba(239,91,91,0.1);--orange:#f0a050;--orange-bg:rgba(240,160,80,0.1);--purple:#a06ef0;--purple-bg:rgba(160,110,240,0.12);--radius:10px;--radius-sm:6px;}
+  body{font-family:-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+  .header{padding:16px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface);}
+  .logo{display:flex;align-items:center;gap:14px;}
+  .logo-img{height:38px;display:block;border-radius:4px;background:#fff;padding:2px 4px;}
+  .logo-divider{width:1px;height:28px;background:var(--border-light);}
+  .logo-text{font-family:-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.3px;color:var(--text);}
+  .file-count{font-size:13px;color:var(--text-dim);font-weight:500;background:var(--surface2);padding:6px 14px;border-radius:20px;border:1px solid var(--border);}
+  .app{display:flex;height:calc(100vh - 77px);}
+  .sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .sidebar-section{padding:16px;border-bottom:1px solid var(--border);}
+  .sidebar-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:12px;font-weight:600;}
+  .fp-banner{background:linear-gradient(135deg,rgba(160,110,240,0.15),rgba(91,141,239,0.1));border:1px solid rgba(160,110,240,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
+  .fp-banner:hover{border-color:var(--purple);background:linear-gradient(135deg,rgba(160,110,240,0.22),rgba(91,141,239,0.15));}
+  .efm-banner{background:linear-gradient(135deg,rgba(240,160,80,0.15),rgba(78,203,113,0.1));border:1px solid rgba(240,160,80,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
+  .efm-banner:hover{border-color:var(--orange);background:linear-gradient(135deg,rgba(240,160,80,0.22),rgba(78,203,113,0.15));}
+  .cato-banner{background:linear-gradient(135deg,rgba(91,141,239,0.15),rgba(78,203,113,0.1));border:1px solid rgba(91,141,239,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
+  .cato-banner:hover{border-color:var(--accent);background:linear-gradient(135deg,rgba(91,141,239,0.22),rgba(78,203,113,0.15));}
+  .sally-banner{background:linear-gradient(135deg,rgba(78,203,113,0.15),rgba(91,141,239,0.1));border:1px solid rgba(78,203,113,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
+  .sally-banner:hover{border-color:var(--green);background:linear-gradient(135deg,rgba(78,203,113,0.22),rgba(91,141,239,0.15));}
+  .fp-banner-title{font-size:14px;font-weight:700;color:var(--purple);display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .fp-banner-desc{font-size:11px;color:var(--text-dim);line-height:1.5;}
+  .fp-badge{font-size:9px;background:var(--purple);color:#fff;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.5px;}
+  .dropzone{border:2px dashed var(--border-light);border-radius:var(--radius);padding:24px 16px;text-align:center;cursor:pointer;transition:all 0.25s;background:var(--surface2);}
+  .dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:var(--accent-bg);}
+  .dropzone-icon{font-size:28px;margin-bottom:8px;}
+  .dropzone-text{font-size:13px;color:var(--text-dim);line-height:1.5;}
+  .dropzone-text strong{color:var(--accent);}
+  input[type="file"]{display:none;}
+  .file-list{flex:1;overflow-y:auto;padding:8px;}
+  .file-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;margin-bottom:2px;}
+  .file-item:hover{background:var(--surface2);}
+  .file-item.active{background:var(--accent-bg);border:1px solid rgba(91,141,239,0.25);}
+  .file-badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:4px;font-family:Consolas,'Courier New',monospace;text-transform:uppercase;}
+  .file-badge.csv{background:var(--green-bg);color:var(--green);}
+  .file-name{flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .file-rows{font-size:11px;color:var(--text-muted);font-family:Consolas,'Courier New',monospace;}
+  .file-remove{opacity:0;font-size:16px;color:var(--red);cursor:pointer;transition:opacity 0.15s;background:none;border:none;}
+  .file-item:hover .file-remove{opacity:1;}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .toolbar{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;}
+  .toolbar-group{display:flex;align-items:center;gap:6px;padding-right:12px;border-right:1px solid var(--border);margin-right:4px;}
+  .toolbar-group:last-child{border-right:none;}
+  .toolbar-group label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-right:4px;}
+  .btn{font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+  .btn:hover{background:var(--surface3);border-color:var(--border-light);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{background:var(--accent-hover);}
+  .btn.danger{color:var(--red);}.btn.danger:hover{background:var(--red-bg);}
+  .btn.purple{background:var(--purple);border-color:var(--purple);color:#fff;}
+  .btn.purple:hover{background:#b080ff;}
+  .btn.gh-btn{background:var(--green-bg);border-color:rgba(78,203,113,0.3);color:var(--green);}
+  .btn.gh-btn:hover{background:rgba(78,203,113,0.2);border-color:var(--green);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn .icon{font-size:14px;}
+  .table-container{flex:1;overflow:auto;padding:0;}
+  .table-container table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto;}
+  .table-container thead{position:sticky;top:0;z-index:10;}
+  .table-container th{background:var(--surface2);padding:10px 14px;text-align:left;font-weight:600;font-size:12px;color:var(--text-dim);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+  .table-container th:hover{color:var(--text);background:var(--surface3);}
+  .table-container th .sa{margin-left:4px;font-size:10px;}
+  .table-container td{padding:8px 14px;border-bottom:1px solid var(--border);font-family:Consolas,'Courier New',monospace;font-size:12px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .table-container tr:hover td{background:var(--surface2);color:var(--text);}
+  .rn{color:var(--text-muted)!important;font-size:11px!important;text-align:right;width:50px;min-width:50px;}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);gap:16px;padding:40px;}
+  .empty-state h2{font-size:20px;font-weight:600;color:var(--text-dim);}
+  .empty-state p{font-size:14px;text-align:center;line-height:1.6;max-width:380px;}
+  .statusbar{padding:8px 20px;border-top:1px solid var(--border);background:var(--surface);display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);font-family:Consolas,'Courier New',monospace;}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;min-width:420px;max-width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+  .modal h3{font-size:16px;margin-bottom:6px;}
+  .modal p{font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.5;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+  .input{font-family:inherit;font-size:13px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;width:100%;transition:border-color 0.15s;}
+  .input:focus{border-color:var(--accent);}
+  input[type="date"].input{color-scheme:dark;cursor:pointer;}
+  .input-group{margin-bottom:14px;}
+  .input-group label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  select.input{cursor:pointer;appearance:auto;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;font-size:13px;font-weight:500;box-shadow:0 10px 40px rgba(0,0,0,0.4);z-index:2000;display:flex;align-items:center;gap:10px;transform:translateY(80px);opacity:0;transition:all 0.3s ease;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.success{border-left:3px solid var(--green);}
+  .toast.error{border-left:3px solid var(--red);}
+  .toast.info{border-left:3px solid var(--accent);}
+  .col-menu{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px;box-shadow:0 10px 40px rgba(0,0,0,0.5);z-index:500;min-width:180px;display:none;}
+  .col-menu.open{display:block;}
+  .col-menu-item{padding:8px 12px;font-size:13px;cursor:pointer;border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;transition:background 0.1s;}
+  .col-menu-item:hover{background:var(--surface2);}
+  .col-menu-item.danger{color:var(--red);}
+  .col-menu-sep{height:1px;background:var(--border);margin:4px 0;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--border-light);}
+  .filter-bar{padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:none;gap:10px;align-items:center;}
+  .filter-bar.open{display:flex;}
+  .filter-bar .input{width:auto;flex:1;}
+  .merge-file-list{max-height:200px;overflow-y:auto;}
+  .merge-file-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.1s;}
+  .merge-file-item:hover{background:var(--surface2);}
+  .merge-file-item input[type="checkbox"]{accent-color:var(--accent);}
+  .quick-stats{display:flex;gap:16px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface);}
+  .stat{font-size:12px;color:var(--text-muted);}
+  .stat strong{color:var(--text-dim);font-family:Consolas,'Courier New',monospace;}
+  .fp-log{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;max-height:320px;overflow-y:auto;font-family:Consolas,'Courier New',monospace;font-size:12px;line-height:1.8;margin-top:12px;}
+  .fp-log .log-step{padding:2px 0;}.fp-log .log-ok{color:var(--green);}.fp-log .log-warn{color:var(--orange);}.fp-log .log-info{color:var(--accent);}.fp-log .log-head{color:var(--purple);font-weight:600;margin-top:6px;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:4px;}
+  .export-btns{display:flex;flex-direction:column;gap:8px;}
+  .gh-export-note{font-size:10px;color:var(--text-muted);margin-top:4px;line-height:1.4;text-align:center;}
+  .map-table{width:100%;font-size:12px;border-collapse:collapse;margin-top:8px;}
+  .map-table th{text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+  .map-table td{padding:5px 8px;border-bottom:1px solid var(--border);font-family:Consolas,'Courier New',monospace;}
+  .map-table select{font-family:inherit;font-size:12px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);width:100%;}
+  .map-table .gh-col{color:var(--purple);font-weight:500;}
+  .map-table .gh-req{color:var(--orange);font-size:10px;margin-left:4px;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo"><img class="logo-img" src="data:image/jpeg;base64,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" alt="DSS Final Mile"><div class="logo-divider"></div><div class="logo-text">DataForge</div></div>
+  <div class="file-count" id="fileCount">No files loaded</div>
+</div>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <h3>Processes</h3>
+      <div class="fp-banner" onclick="openFragilePak()">
+        <div class="fp-banner-title">📦 FragilePak <span class="fp-badge">AUTO</span></div>
+        <div class="fp-banner-desc">DispatchTrack → Grasshopper. Pick date, hit run, done.</div>
+      </div>
+      <div class="efm-banner" onclick="openEFM()" style="margin-top:8px;">
+        <div class="fp-banner-title" style="color:var(--orange);">🚛 EFM <span class="fp-badge" style="background:var(--orange);">AUTO</span></div>
+        <div class="fp-banner-desc">ReportManager → Grasshopper. Upload file, hit run, done.</div>
+      </div>
+      <div class="cato-banner" onclick="openCato()" style="margin-top:8px;">
+        <div class="fp-banner-title" style="color:var(--accent);">📄 Cato <span class="fp-badge" style="background:var(--accent);">PDF</span></div>
+        <div class="fp-banner-desc">Split CATO PDF → Monday &amp; Tuesday route PDFs.</div>
+      </div>
+      <div class="sally-banner" onclick="openSally()" style="margin-top:8px;">
+        <div class="fp-banner-title" style="color:var(--green);">📄 Sally <span class="fp-badge" style="background:var(--green);">PDF</span></div>
+        <div class="fp-banner-desc">Split Sally PDF → Monday &amp; Tuesday route PDFs.</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3>Import Files</h3>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="dropzone-icon">📂</div>
+        <div class="dropzone-text">Drop CSV files here or<br><strong>click to browse</strong></div>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".csv">
+    </div>
+    <div class="sidebar-section" style="padding-bottom:8px;"><h3>Loaded Files</h3></div>
+    <div class="file-list" id="fileList"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No files yet</div></div>
+    <div class="sidebar-section" style="border-top:1px solid var(--border);border-bottom:none;">
+      <div class="export-btns">
+        <button class="btn primary" style="width:100%;justify-content:center;" onclick="exportCSV()"><span class="icon">💾</span> Export as CSV</button>
+        <button class="btn gh-btn" style="width:100%;justify-content:center;" onclick="openGrasshopperExport()"><span class="icon">🦗</span> Export as Grasshopper CSV</button>
+        <div class="gh-export-note">Maps your columns to the 46-column Grasshopper template</div>
+      </div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="toolbar" id="toolbar" style="display:none;">
+      <div class="toolbar-group"><label>Clean</label>
+        <button class="btn" onclick="removeDuplicates()"><span class="icon">🧹</span> Duplicates</button>
+        <button class="btn" onclick="openFillBlanks()"><span class="icon">🩹</span> Blanks</button>
+        <button class="btn" onclick="trimWhitespace()"><span class="icon">✂️</span> Trim</button>
+      </div>
+      <div class="toolbar-group"><label>Columns</label>
+        <button class="btn" onclick="openAddColumn()"><span class="icon">➕</span> Add</button>
+        <button class="btn" onclick="openRenameColumn()"><span class="icon">✏️</span> Rename</button>
+      </div>
+      <div class="toolbar-group"><label>Data</label>
+        <button class="btn" onclick="toggleFilter()"><span class="icon">🔍</span> Filter</button>
+        <button class="btn" onclick="openMerge()"><span class="icon">🔗</span> Merge</button>
+      </div>
+      <div class="toolbar-group" style="border:none;margin-left:auto;">
+        <button class="btn" onclick="undoAction()" id="undoBtn" disabled><span class="icon">↩️</span> Undo</button>
+      </div>
+    </div>
+    <div class="filter-bar" id="filterBar">
+      <select class="input" id="filterCol" style="width:160px;flex:none;"></select>
+      <select class="input" id="filterOp" style="width:130px;flex:none;">
+        <option value="contains">Contains</option><option value="equals">Equals</option>
+        <option value="starts">Starts with</option><option value="ends">Ends with</option>
+        <option value="gt">Greater than</option><option value="lt">Less than</option>
+        <option value="empty">Is empty</option><option value="notempty">Is not empty</option>
+      </select>
+      <input class="input" id="filterVal" placeholder="Filter value...">
+      <button class="btn primary" onclick="applyFilter()"><span class="icon">✓</span> Apply</button>
+      <button class="btn" onclick="clearFilter()">Clear</button>
+      <button class="btn danger" onclick="deleteFilteredRows()"><span class="icon">🗑</span> Delete Matching</button>
+    </div>
+    <div class="quick-stats" id="quickStats" style="display:none;">
+      <div class="stat">Rows: <strong id="statRows">0</strong></div>
+      <div class="stat">Columns: <strong id="statCols">0</strong></div>
+      <div class="stat">Blanks: <strong id="statBlanks">0</strong></div>
+      <div class="stat">Duplicates: <strong id="statDupes">0</strong></div>
+    </div>
+    <div class="table-container" id="tableContainer">
+      <div class="empty-state"><div style="font-size:56px;opacity:0.3;">🚚</div><h2>DataForge</h2>
+        <p>Drop a CSV file into the sidebar to get started, or run <strong style="color:var(--purple);">FragilePak</strong>, <strong style="color:var(--orange);">EFM</strong>, <strong style="color:var(--accent);">Cato</strong>, or <strong style="color:var(--green);">Sally</strong> to process your files.</p>
+      </div>
+    </div>
+    <div class="statusbar" id="statusbar" style="display:none;">
+      <span id="statusLeft">Ready</span><span id="statusRight"></span>
+    </div>
+  </div>
+</div>
+<div class="col-menu" id="colMenu">
+  <div class="col-menu-item" onclick="sortCol('asc')">↑ Sort A → Z</div>
+  <div class="col-menu-item" onclick="sortCol('desc')">↓ Sort Z → A</div>
+  <div class="col-menu-sep"></div>
+  <div class="col-menu-item" onclick="renameColFromMenu()">✏️ Rename</div>
+  <div class="col-menu-item danger" onclick="deleteCol()">🗑 Delete Column</div>
+</div>
+<div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalContent"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════ BUILT-IN CSV PARSER (no external libraries) ═══════
+function parseCSV(text){
+  const rows=[];let row=[];let cell='';let inQuote=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];const next=text[i+1];
+    if(inQuote){
+      if(c==='"'&&next==='"'){cell+='"';i++;}
+      else if(c==='"'){inQuote=false;}
+      else{cell+=c;}
+    }else{
+      if(c==='"'){inQuote=true;}
+      else if(c===','){row.push(cell);cell='';}
+      else if(c==='\r'&&next==='\n'){row.push(cell);cell='';if(row.length>1||row[0]!=='')rows.push(row);row=[];i++;}
+      else if(c==='\n'){row.push(cell);cell='';if(row.length>1||row[0]!=='')rows.push(row);row=[];}
+      else{cell+=c;}
+    }
+  }
+  row.push(cell);if(row.length>1||row[0]!=='')rows.push(row);
+  return rows;
+}
+function toCSV(headers,data){
+  function esc(v){const s=String(v??'');return '"'+s.replace(/"/g,'""')+'"';}
+  let out=headers.map(esc).join(',')+'\n';
+  for(const row of data){out+=row.map(esc).join(',')+'\n';}
+  return out;
+}
+
+// ═══════ GRASSHOPPER TEMPLATE ═══════
+const GH_TEMPLATE=['PO_NUMBER','FREIGHT_TRACKING','SO_NUMBER','FIRST_NAME','LAST_NAME','ADDRESS1','ADDRESS2','CITY','STATE','ZIP','PHONE1','PHONE2','EMAIL','ITEM_SKU','ITEM_SERIAL_NUMBER','ITEM_DESCRIPTION','ITEM_CATEGORY','WEIGHT','CUBE','LENGTH','WIDTH','HEIGHT','COMMODITY_TYPE','RETAIL_VALUE','INSURANCE_COVERAGE_AMOUNT','QUANTITY','LINKS','VENDOR','NOTES','DRIVER_NOTES','SERVICE_LEVEL','PICKUP_ADDRESS1','PICKUP_ADDRESS2','PICKUP_CITY','PICKUP_STATE','PICKUP_ZIP','PICKUP_COMPANY','PICKUP_CONTACT_NAME','PICKUP_CONTACT_PHONE','PICKUP_CONTACT_EMAIL','STOP_TYPE','MASK_CUSTOMER_INFORMATION','HANDLING_INSTRUCTION','GENERAL_CUSTOM_FIELD','INSPECT_UPON_ARRIVAL','REQUESTED_HUB'];
+const GH_REQUIRED=new Set(['PO_NUMBER','FIRST_NAME','LAST_NAME','ADDRESS1','CITY','STATE','ZIP','PHONE1','ITEM_SKU','ITEM_DESCRIPTION','WEIGHT','QUANTITY','VENDOR','SERVICE_LEVEL','STOP_TYPE']);
+const GH_DESC_ROW=['Required - <vendor po #>','Optional - e.g: FedEx tracking','Optional - Sales Order number','Required - Customer first name','Required - Customer last name','Required - Delivery address','Optional','Required','Required','Required','Required','Optional','Optional','Required',"Optional - Item's serial number",'Required','Optional - Desk, Chair, Sofa, etc.','Required - weight per item','Optional - cube per item','Optional - item length','Optional - item width','Optional - item height','Optional - cg/uph','Optional - retailer value per item','Optional - amount of insurance coverage to be applied on this line item (if quantity >1, this amount will applied on each item)','Optional - total quantity','Optional - Example: https://mysite.com/image1,  https://mysite.com/image2, https://mysite.com/image3','Required - The manufacturer/vendor of the item','Optional - customer service notes','Optional - driver notes','Required - Blanket Wrap [use: blnk], White Glove [wg], Room of Choice + Assembly [rocpa], Room of choice + Debris [rocp], Room of Choice [roc], Threshold [thr], Curb [curb], Parcel [prcl], Unattended [unattended],  Will Call [willcall], B2B [b2b], Blanket Wrap [blnk], Express [exp]','Optional if FOB','Optional','Optional if FOB','Optional if FOB','Optional if FOB','Optional if FOB','Optional if FOB','Optional if FOB','Optional if FOB','Required - 1-delivery (default), 2-return [empty default to delivery]','Optional - 0/empty (default), 1 - hide customer information from the tracking page','Optional if FOB','Optional - Input is limited to 100 characters','Optional - inspect - if the item requires pre inspection. Leave empty if not.','Optional - Indicate which hub should handle the order'];
+
+// ═══════ DISPATCHTRACK → GRASSHOPPER MAPPING ═══════
+const DT_MAP={PO_NUMBER:'ProNumber',SERVICE_LEVEL:'Service Level',ADDRESS1:'Consignee Address 1',ADDRESS2:'Consignee Address 2',CITY:'Consignee City',STATE:'Consignee State',ZIP:'Consignee Zip',PHONE1:'Consignee Phone 1',PHONE2:'Consignee Phone 2',ITEM_SKU:'ItemIDs',ITEM_DESCRIPTION:'Order Line Item Description',QUANTITY:'Order Line Item Qty',CUBE:'Order Line Item Volume',WEIGHT:'Order Line Item Weight',NOTES:'Comment1'};
+const DT_NAME_COL='Consignee Name';
+const DT_DATE_COL='Resource Date';
+const SERVICE_LEVEL_MAP={'threshold':'thr','white glove':'wg','white glove assembly':'rocpa','roc - debris removal':'rocp','roc debris removal':'rocp','room of choice':'roc','will call':'willcall','blanket wrap':'blnk','curb':'curb','parcel':'prcl','unattended':'unattended','b2b':'b2b','express':'exp','pickup swap out':'wg'};
+const PICKUP_SERVICES=new Set(['pickup swap out']);
+function translateServiceLevel(r){const k=String(r).trim().toLowerCase();return SERVICE_LEVEL_MAP[k]||String(r).trim();}
+
+// Fuzzy matching for manual Grasshopper export
+const GH_HINTS={PO_NUMBER:['order reference','po number','pro number','pronumber','shipment id','reference','order #','pro'],FIRST_NAME:['first name','firstname','consignee name'],LAST_NAME:['last name','lastname'],ADDRESS1:['street address','address1','address 1','address','consignee address 1'],ADDRESS2:['address2','address 2','consignee address 2'],CITY:['city','consignee city'],STATE:['state','consignee state'],ZIP:['zip','zip code','consignee zip','postal'],PHONE1:['phone','phone1','phone number','consignee phone 1','mobile'],PHONE2:['phone2','consignee phone 2'],EMAIL:['email'],ITEM_SKU:['item sku','sku','itemids','item id','model'],ITEM_SERIAL_NUMBER:['serial number','serial'],ITEM_DESCRIPTION:['description','item description','order line item description','product name'],ITEM_CATEGORY:['category'],WEIGHT:['weight','order line item weight'],CUBE:['cube','volume'],QUANTITY:['quantity','qty','order line item qty'],VENDOR:['vendor','vendor name','manufacturer'],NOTES:['notes','comment1','customer notes'],DRIVER_NOTES:['driver notes','driver instructions'],SERVICE_LEVEL:['service level','delivery type','service type'],STOP_TYPE:['stop type','order type']};
+
+// ═══════ CORE STATE ═══════
+let files=[],activeIdx=-1,history=[],sortState={col:-1,dir:'asc'},menuCol=-1;
+
+// ═══════ FILE IMPORT ═══════
+const dz=document.getElementById('dropzone');const fi=document.getElementById('fileInput');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+fi.addEventListener('change',e=>handleFiles(e.target.files));
+
+function parseFileObj(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const rows=parseCSV(ev.target.result);
+        const headers=(rows[0]||[]).map(h=>String(h).trim().replace(/\r/g,''));
+        const data=rows.slice(1).map(r=>{const nr=[...r];while(nr.length<headers.length)nr.push('');return nr.slice(0,headers.length);});
+        resolve({name:file.name,ext:'csv',headers,data});
+      }catch(err){reject(err);}
+    };
+    reader.readAsText(file);
+  });
+}
+function handleFiles(fl){
+  for(const f of fl){
+    if(!f.name.toLowerCase().endsWith('.csv')){showToast(`Skipped "${f.name}" — CSV only`,'error');continue;}
+    parseFileObj(f).then(obj=>{files.push(obj);if(activeIdx===-1)selectFile(files.length-1);renderFileList();showToast(`Loaded "${obj.name}" — ${obj.data.length} rows`,'success');}).catch(()=>showToast(`Error reading "${f.name}"`,'error'));
+  }
+}
+
+// ═══════ FILE LIST ═══════
+function renderFileList(){const el=document.getElementById('fileList');document.getElementById('fileCount').textContent=files.length?`${files.length} file${files.length>1?'s':''}`:'No files loaded';if(!files.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No files yet</div>';return;}el.innerHTML=files.map((f,i)=>`<div class="file-item ${i===activeIdx?'active':''}" onclick="selectFile(${i})"><span class="file-badge csv">csv</span><span class="file-name" title="${f.name}">${f.name}</span><span class="file-rows">${f.data.length}r</span><button class="file-remove" onclick="event.stopPropagation();removeFile(${i})">×</button></div>`).join('');}
+function selectFile(idx){activeIdx=idx;history=[];document.getElementById('undoBtn').disabled=true;sortState={col:-1,dir:'asc'};document.getElementById('filterBar').classList.remove('open');renderFileList();renderTable();updateStats();document.getElementById('toolbar').style.display='flex';document.getElementById('statusbar').style.display='flex';document.getElementById('quickStats').style.display='flex';}
+function removeFile(idx){files.splice(idx,1);if(activeIdx>=files.length)activeIdx=files.length-1;if(!files.length){activeIdx=-1;document.getElementById('toolbar').style.display='none';document.getElementById('statusbar').style.display='none';document.getElementById('quickStats').style.display='none';document.getElementById('tableContainer').innerHTML='<div class="empty-state"><div style="font-size:56px;opacity:0.3;">🚚</div><h2>DataForge</h2><p>Drop a file to get started.</p></div>';}else{renderTable();updateStats();}renderFileList();}
+
+// ═══════ UNDO ═══════
+function saveState(){const f=files[activeIdx];history.push({headers:[...f.headers],data:f.data.map(r=>[...r])});if(history.length>30)history.shift();document.getElementById('undoBtn').disabled=false;}
+function undoAction(){if(!history.length)return;const p=history.pop();files[activeIdx].headers=p.headers;files[activeIdx].data=p.data;if(!history.length)document.getElementById('undoBtn').disabled=true;renderTable();updateStats();showToast('Undone','info');}
+
+// ═══════ TABLE ═══════
+function renderTable(){if(activeIdx<0)return;const f=files[activeIdx];const c=document.getElementById('tableContainer');const mx=2000;const d=f.data.slice(0,mx);let h='<table><thead><tr><th class="rn">#</th>';f.headers.forEach((hd,i)=>{const a=sortState.col===i?(sortState.dir==='asc'?' ▲':' ▼'):'';h+=`<th oncontextmenu="openColMenu(event,${i})" onclick="quickSort(${i})">${esc(hd)}<span class="sa">${a}</span></th>`;});h+='</tr></thead><tbody>';d.forEach((row,ri)=>{h+=`<tr><td class="rn">${ri+1}</td>`;row.forEach(cell=>{h+=`<td title="${esc(String(cell))}">${esc(String(cell))}</td>`;});h+='</tr>';});h+='</tbody></table>';if(f.data.length>mx)h+=`<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Showing first ${mx} of ${f.data.length}</div>`;c.innerHTML=h;document.getElementById('statusLeft').textContent=f.name;document.getElementById('statusRight').textContent=`${f.data.length} rows × ${f.headers.length} cols`;}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ═══════ STATS ═══════
+function updateStats(){if(activeIdx<0)return;const f=files[activeIdx];document.getElementById('statRows').textContent=f.data.length;document.getElementById('statCols').textContent=f.headers.length;let b=0;f.data.forEach(r=>r.forEach(c=>{if(c===''||c==null)b++;}));document.getElementById('statBlanks').textContent=b;const seen=new Set();let d=0;f.data.forEach(r=>{const k=JSON.stringify(r);if(seen.has(k))d++;else seen.add(k);});document.getElementById('statDupes').textContent=d;document.getElementById('filterCol').innerHTML=f.headers.map((h,i)=>`<option value="${i}">${h}</option>`).join('');}
+
+// ═══════ SORTING ═══════
+function quickSort(ci){if(activeIdx<0)return;saveState();if(sortState.col===ci)sortState.dir=sortState.dir==='asc'?'desc':'asc';else{sortState.col=ci;sortState.dir='asc';}doSort();renderTable();}
+function sortCol(dir){if(activeIdx<0||menuCol<0)return;saveState();sortState.col=menuCol;sortState.dir=dir;doSort();renderTable();closeColMenu();}
+function doSort(){const col=sortState.col,dir=sortState.dir==='asc'?1:-1;files[activeIdx].data.sort((a,b)=>{let va=a[col]??'',vb=b[col]??'';const na=parseFloat(va),nb=parseFloat(vb);if(!isNaN(na)&&!isNaN(nb))return(na-nb)*dir;return String(va).localeCompare(String(vb))*dir;});}
+
+// ═══════ COL MENU ═══════
+function openColMenu(e,ci){e.preventDefault();menuCol=ci;const m=document.getElementById('colMenu');m.style.left=e.clientX+'px';m.style.top=e.clientY+'px';m.classList.add('open');}
+function closeColMenu(){document.getElementById('colMenu').classList.remove('open');}
+document.addEventListener('click',closeColMenu);
+function deleteCol(){if(activeIdx<0||menuCol<0)return;saveState();const f=files[activeIdx],n=f.headers[menuCol];f.headers.splice(menuCol,1);f.data.forEach(r=>r.splice(menuCol,1));renderTable();updateStats();showToast(`Deleted "${n}"`,'success');closeColMenu();}
+function renameColFromMenu(){closeColMenu();if(activeIdx<0||menuCol<0)return;const f=files[activeIdx];openModal(`<h3>Rename Column</h3><p>Rename "${esc(f.headers[menuCol])}"</p><div class="input-group"><label>New Name</label><input class="input" id="renameInput" value="${esc(f.headers[menuCol])}"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doRenameCol(${menuCol})">Rename</button></div>`);setTimeout(()=>document.getElementById('renameInput').select(),50);}
+function doRenameCol(idx){const v=document.getElementById('renameInput').value.trim();if(!v)return;saveState();files[activeIdx].headers[idx]=v;renderTable();updateStats();closeModal();showToast('Renamed','success');}
+
+// ═══════ CLEAN ═══════
+function removeDuplicates(){if(activeIdx<0)return;saveState();const f=files[activeIdx],seen=new Set(),b=f.data.length;f.data=f.data.filter(r=>{const k=JSON.stringify(r);if(seen.has(k))return false;seen.add(k);return true;});const rm=b-f.data.length;renderTable();updateStats();showToast(rm?`Removed ${rm} duplicates`:'No duplicates',rm?'success':'info');}
+function openFillBlanks(){if(activeIdx<0)return;const f=files[activeIdx];openModal(`<h3>Handle Blanks</h3><div class="input-group"><label>Action</label><select class="input" id="blankAction"><option value="remove">Remove rows with blanks</option><option value="fill">Fill blanks with value</option></select></div><div class="input-group" id="fillValueGroup" style="display:none;"><label>Fill Value</label><input class="input" id="fillValue" placeholder="e.g. N/A, 0"></div><div class="input-group"><label>In Column</label><select class="input" id="blankCol"><option value="-1">All columns</option>${f.headers.map((h,i)=>`<option value="${i}">${h}</option>`).join('')}</select></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doFillBlanks()">Apply</button></div>`);document.getElementById('blankAction').addEventListener('change',e=>{document.getElementById('fillValueGroup').style.display=e.target.value==='fill'?'block':'none';});}
+function doFillBlanks(){saveState();const action=document.getElementById('blankAction').value,col=parseInt(document.getElementById('blankCol').value),f=files[activeIdx];if(action==='remove'){const b=f.data.length;f.data=f.data.filter(r=>{if(col===-1)return r.every(c=>c!==''&&c!=null);return r[col]!==''&&r[col]!=null;});showToast(`Removed ${b-f.data.length} rows`,'success');}else{const fv=document.getElementById('fillValue').value;let c=0;f.data.forEach(r=>{if(col===-1){r.forEach((v,i)=>{if(v===''||v==null){r[i]=fv;c++;}});}else{if(r[col]===''||r[col]==null){r[col]=fv;c++;}}});showToast(`Filled ${c} cells`,'success');}renderTable();updateStats();closeModal();}
+function trimWhitespace(){if(activeIdx<0)return;saveState();let c=0;files[activeIdx].data.forEach(r=>{r.forEach((v,i)=>{const t=String(v).trim();if(t!==String(v)){r[i]=t;c++;}});});renderTable();showToast(c?`Trimmed ${c} cells`:'No extra whitespace',c?'success':'info');}
+
+// ═══════ COLUMNS ═══════
+function openAddColumn(){if(activeIdx<0)return;openModal(`<h3>Add Column</h3><div class="input-group"><label>Name</label><input class="input" id="newColName"></div><div class="input-group"><label>Default Value</label><input class="input" id="newColDefault"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doAddColumn()">Add</button></div>`);setTimeout(()=>document.getElementById('newColName').focus(),50);}
+function doAddColumn(){const n=document.getElementById('newColName').value.trim();if(!n){showToast('Enter a name','error');return;}saveState();const d=document.getElementById('newColDefault').value;files[activeIdx].headers.push(n);files[activeIdx].data.forEach(r=>r.push(d));renderTable();updateStats();closeModal();showToast(`Added "${n}"`,'success');}
+function openRenameColumn(){if(activeIdx<0)return;const f=files[activeIdx];openModal(`<h3>Rename Column</h3><div class="input-group"><label>Column</label><select class="input" id="renameColSelect">${f.headers.map((h,i)=>`<option value="${i}">${h}</option>`).join('')}</select></div><div class="input-group"><label>New Name</label><input class="input" id="renameColInput"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doRenameFromModal()">Rename</button></div>`);}
+function doRenameFromModal(){const idx=parseInt(document.getElementById('renameColSelect').value),n=document.getElementById('renameColInput').value.trim();if(!n){showToast('Enter a name','error');return;}saveState();files[activeIdx].headers[idx]=n;renderTable();updateStats();closeModal();showToast('Renamed','success');}
+
+// ═══════ FILTER ═══════
+function toggleFilter(){document.getElementById('filterBar').classList.toggle('open');}
+function applyFilter(){if(activeIdx<0)return;const col=parseInt(document.getElementById('filterCol').value),op=document.getElementById('filterOp').value,val=document.getElementById('filterVal').value;saveState();const f=files[activeIdx],b=f.data.length;f.data=f.data.filter(r=>matchRow(r,col,op,val));renderTable();updateStats();showToast(`${b-f.data.length} removed, ${f.data.length} remaining`,'success');}
+function clearFilter(){if(history.length)undoAction();}
+function deleteFilteredRows(){if(activeIdx<0)return;const col=parseInt(document.getElementById('filterCol').value),op=document.getElementById('filterOp').value,val=document.getElementById('filterVal').value;saveState();const f=files[activeIdx],b=f.data.length;f.data=f.data.filter(r=>!matchRow(r,col,op,val));renderTable();updateStats();showToast(`Deleted ${b-f.data.length} rows`,'success');}
+function matchRow(r,col,op,val){const cell=String(r[col]??'').toLowerCase(),v=val.toLowerCase();switch(op){case 'contains':return cell.includes(v);case 'equals':return cell===v;case 'starts':return cell.startsWith(v);case 'ends':return cell.endsWith(v);case 'gt':return parseFloat(cell)>parseFloat(v);case 'lt':return parseFloat(cell)<parseFloat(v);case 'empty':return cell==='';case 'notempty':return cell!=='';}return true;}
+
+// ═══════ MERGE ═══════
+function openMerge(){if(files.length<2){showToast('Load 2+ files','info');return;}openModal(`<h3>Merge Files</h3><div class="merge-file-list">${files.map((f,i)=>i===activeIdx?'':`<label class="merge-file-item"><input type="checkbox" value="${i}"><span class="file-badge csv">csv</span><span>${esc(f.name)}</span><span style="margin-left:auto;color:var(--text-muted);font-size:12px;">${f.data.length}r</span></label>`).join('')}</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doMerge()">Merge</button></div>`);}
+function doMerge(){const cbs=document.querySelectorAll('.merge-file-list input:checked');if(!cbs.length){showToast('Select a file','error');return;}saveState();const f=files[activeIdx];let added=0;cbs.forEach(cb=>{const src=files[parseInt(cb.value)];src.data.forEach(sr=>{const nr=f.headers.map(h=>{const si=src.headers.indexOf(h);return si>=0?sr[si]:'';});f.data.push(nr);added++;});});renderTable();updateStats();closeModal();showToast(`Merged ${added} rows`,'success');}
+
+// ═══════ EXPORTS ═══════
+function exportCSV(){if(activeIdx<0){showToast('No file selected','error');return;}const f=files[activeIdx];downloadCSV(f.headers,f.data,f.name.replace(/\.\w+$/,'')+'_processed.csv');}
+function downloadCSV(headers,data,filename,descRow){
+  const allData=descRow?[descRow,...data]:data;
+  const csv=toCSV(headers,allData);
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);showToast(`Exported "${filename}"`,'success');
+}
+
+// ═══════ GRASSHOPPER EXPORT (manual) ═══════
+function normH(h){return String(h).trim().replace(/[^a-zA-Z0-9\s_#]/g,'').replace(/\s+/g,' ').trim().toLowerCase();}
+function findBestMatch(ghField,srcHeaders){const hints=GH_HINTS[ghField]||[];const normed=srcHeaders.map(normH);const g1=ghField.toLowerCase().replace(/_/g,' ');let i=normed.indexOf(g1);if(i>=0)return i;i=normed.indexOf(ghField.toLowerCase());if(i>=0)return i;for(const h of hints){i=normed.indexOf(h);if(i>=0)return i;}for(const h of hints){for(let j=0;j<normed.length;j++){if(normed[j].includes(h)||h.includes(normed[j]))return j;}}return -1;}
+function openGrasshopperExport(){if(activeIdx<0){showToast('No file selected','error');return;}const f=files[activeIdx];const colMap={};for(const gh of GH_TEMPLATE)colMap[gh]=findBestMatch(gh,f.headers);let rows='';for(const gh of GH_TEMPLATE){const req=GH_REQUIRED.has(gh);rows+=`<tr><td class="gh-col">${gh}${req?'<span class="gh-req">*</span>':''}</td><td><select class="input" id="ghMap_${gh}" style="padding:4px 6px;font-size:12px;"><option value="-1">(empty)</option>${f.headers.map((h,i)=>`<option value="${i}" ${colMap[gh]===i?'selected':''}>${h}</option>`).join('')}</select></td></tr>`;}openModal(`<h3 style="color:var(--green);">🦗 Export as Grasshopper CSV</h3><p>Map columns. Required: <span style="color:var(--orange);">*</span></p><div style="max-height:380px;overflow-y:auto;"><table class="map-table"><thead><tr><th>Grasshopper</th><th>Your Column</th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn gh-btn" onclick="doGrasshopperExport()">💾 Export</button></div>`);}
+function doGrasshopperExport(){const f=files[activeIdx];const colMap={};for(const gh of GH_TEMPLATE)colMap[gh]=parseInt(document.getElementById('ghMap_'+gh).value);const ghData=f.data.map(row=>GH_TEMPLATE.map(gh=>{const si=colMap[gh];return si<0?'':String(row[si]||'');}));downloadCSV(GH_TEMPLATE,ghData,f.name.replace(/\.\w+$/,'')+'_Grasshopper.csv',GH_DESC_ROW);closeModal();}
+
+// ═══════ MODAL / TOAST / KEYS ═══════
+function openModal(html){document.getElementById('modalContent').innerHTML=html;document.getElementById('modalOverlay').classList.add('open');}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');}
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+function showToast(msg,type){const t=document.getElementById('toast');const ic={success:'✓',error:'✕',info:'ℹ'};t.className='toast '+(type||'info');t.innerHTML=`<span>${ic[type]||'ℹ'}</span> ${msg}`;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),3000);}
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){e.preventDefault();undoAction();}if(e.key==='Escape'){closeModal();closeColMenu();}});
+
+
+// ═══════ FRAGILEPAK — FULLY HARDCODED ═══════
+function cleanPhone(v){let d=String(v).replace(/\D/g,'');if(d.length>10)d=d.slice(-10);while(d.length<10)d='0'+d;return d;}
+function cleanZip(v){return String(v).split('-')[0].replace(/\D/g,'').slice(0,5).padStart(5,'0');}
+function cleanNumeric(v){return String(v).replace(/[',$]/g,'');}
+function normalizeDate(v){const s=String(v).trim();if(!s||s==='-')return '';const dateOnly=s.replace(/\s+\d{1,2}:\d{2}.*$/,'').trim();const slM=dateOnly.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);if(slM){let[,m,d,y]=slM;if(y.length===2)y='20'+y;return`${parseInt(m)}/${parseInt(d)}/${y}`;}const isoM=dateOnly.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);if(isoM){const[,y,m,d]=isoM;return`${parseInt(m)}/${parseInt(d)}/${y}`;}return dateOnly;}
+function splitName(n){const s=String(n).trim();if(!s||s==='-')return{first:'',last:''};const p=s.split(/\s+/);if(p.length===1)return{first:p[0],last:''};return{first:p[0],last:p.slice(1).join(' ')};}
+function findCol(headers,name){const low=name.toLowerCase().trim();for(let i=0;i<headers.length;i++){if(headers[i].toLowerCase().trim()===low)return i;}return -1;}
+
+let fpState={};
+
+function openFragilePak(){
+  let fo='';if(files.length>0)fo=`<div class="input-group"><label>Use Loaded File</label><select class="input" id="fpFileSelect"><option value="-1">— Upload new —</option>${files.map((f,i)=>`<option value="${i}">${f.name} (${f.data.length} rows)</option>`).join('')}</select></div>`;
+  openModal(`<h3 style="color:var(--purple);">📦 FragilePak Process</h3><p>Load your DispatchTrack CSV and pick the delivery date.</p>${fo}<div class="input-group" id="fpUploadGroup"><label>DispatchTrack File</label><div class="dropzone" style="padding:16px;" onclick="document.getElementById('fpFileInput').click()"><div class="dropzone-text" id="fpFileName">Click to select a CSV file</div></div><input type="file" id="fpFileInput" accept=".csv" style="display:none;"></div><div class="input-group"><label>Delivery Date</label><input type="date" class="input" id="fpDate"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="fpRun()">⚡ Run Process</button></div>`);
+  document.getElementById('fpFileInput').addEventListener('change',e=>{if(e.target.files.length){document.getElementById('fpFileName').textContent=e.target.files[0].name;document.getElementById('fpFileName').style.color='var(--green)';}});
+  const sel=document.getElementById('fpFileSelect');if(sel)sel.addEventListener('change',()=>{document.getElementById('fpUploadGroup').style.display=sel.value==='-1'?'block':'none';});
+}
+
+async function fpRun(){
+  const dateInput=document.getElementById('fpDate').value;
+  if(!dateInput){showToast('Pick a delivery date','error');return;}
+  const[y,m,d]=dateInput.split('-');
+  const targetDate=`${parseInt(m)}/${parseInt(d)}/${y}`;
+
+  let src=null;const sel=document.getElementById('fpFileSelect');
+  if(sel&&sel.value!=='-1'){const idx=parseInt(sel.value);src={headers:[...files[idx].headers],data:files[idx].data.map(r=>[...r]),name:files[idx].name};}
+  else{const fpIn=document.getElementById('fpFileInput');if(!fpIn.files.length){showToast('Select a file','error');return;}try{src=await parseFileObj(fpIn.files[0]);}catch(e){showToast('Error reading file','error');return;}}
+  src.headers=src.headers.map(h=>String(h).trim().replace(/\r/g,''));
+
+  const log=[];
+  log.push({cls:'log-head',text:'FRAGILEPAK PROCESS — START'});
+  log.push({cls:'log-info',text:`Source: ${src.name} — ${src.data.length} rows × ${src.headers.length} cols`});
+  log.push({cls:'log-info',text:`Target date: ${targetDate}`});
+
+  // STEP 1: Filter by Resource Date
+  log.push({cls:'log-head',text:'STEP 1 — Filter by Resource Date'});
+  const dateIdx=findCol(src.headers,DT_DATE_COL);
+  let data=src.data.map(r=>[...r]);
+  if(dateIdx>=0){const b=data.length;data=data.filter(r=>normalizeDate(String(r[dateIdx]||''))===targetDate);log.push({cls:'log-ok',text:`✓ ${b} → ${data.length} rows`});}
+  else log.push({cls:'log-warn',text:`⚠ "${DT_DATE_COL}" not found`});
+  if(!data.length){log.push({cls:'log-warn',text:`⚠ No rows match ${targetDate}`});fpState={};showFpLog(log,true);return;}
+
+  // STEP 2: Clean
+  log.push({cls:'log-head',text:'STEP 2 — Clean & normalize'});
+  let tc=0;data.forEach(r=>r.forEach((c,i)=>{const t=String(c).trim();if(t!==String(c)){r[i]=t;tc++;}}));log.push({cls:'log-ok',text:`✓ Trimmed: ${tc} cells`});
+  const ph1=findCol(src.headers,'Consignee Phone 1'),ph2=findCol(src.headers,'Consignee Phone 2');
+  if(ph1>=0){data.forEach(r=>{r[ph1]=cleanPhone(r[ph1]);});log.push({cls:'log-ok',text:'✓ Phone 1 → 10 digits'});}
+  if(ph2>=0){data.forEach(r=>{r[ph2]=cleanPhone(r[ph2]);});log.push({cls:'log-ok',text:'✓ Phone 2 → 10 digits'});}
+  const zipI=findCol(src.headers,'Consignee Zip');
+  if(zipI>=0){data.forEach(r=>{r[zipI]=cleanZip(r[zipI]);});log.push({cls:'log-ok',text:'✓ ZIP → 5 digits'});}
+  ['Order Line Item Weight','Order Line Item Qty','Order Line Item Volume'].forEach(col=>{const i=findCol(src.headers,col);if(i>=0){data.forEach(r=>{r[i]=cleanNumeric(r[i]);});log.push({cls:'log-ok',text:`✓ Cleaned: ${col}`});}});
+
+  // STEP 3: Distribute unique ItemIDs
+  log.push({cls:'log-head',text:'STEP 3 — Assign unique ItemIDs'});
+  const skuIdx=findCol(src.headers,'ItemIDs');
+  const poIdx=findCol(src.headers,'ProNumber');
+  if(skuIdx>=0&&poIdx>=0){
+    const orderIds={},orderCount={};
+    data.forEach(r=>{const pro=String(r[poIdx]||'').trim();if(!orderIds[pro]){const raw=String(r[skuIdx]||'').trim();orderIds[pro]=raw.includes('|')?raw.split('|').map(s=>s.trim()):[raw];}});
+    data.forEach(r=>{const pro=String(r[poIdx]||'').trim();if(!orderCount[pro])orderCount[pro]=0;const ids=orderIds[pro]||[];r[skuIdx]=orderCount[pro]<ids.length?ids[orderCount[pro]]:(ids[0]||'');orderCount[pro]++;});
+    log.push({cls:'log-ok',text:`✓ Distributed unique ItemIDs across ${Object.keys(orderIds).length} orders`});
+    log.push({cls:'log-ok',text:`✓ All ${data.length} rows preserved`});
+  }else log.push({cls:'log-info',text:'ℹ ItemIDs or ProNumber not found'});
+
+  // STEP 4: Map to Grasshopper
+  log.push({cls:'log-head',text:'STEP 4 — Map to Grasshopper (46 cols)'});
+  const nameIdx=findCol(src.headers,DT_NAME_COL);
+  if(nameIdx>=0)log.push({cls:'log-ok',text:'✓ Splitting Consignee Name → FIRST + LAST'});
+  const idxMap={};let mapped=0;
+  for(const[ghCol,dtCol]of Object.entries(DT_MAP)){idxMap[ghCol]=findCol(src.headers,dtCol);if(idxMap[ghCol]>=0)mapped++;}
+  if(nameIdx>=0)mapped+=2;
+  log.push({cls:'log-ok',text:`✓ Mapped ${mapped} of 46 columns`});
+
+  const ghData=data.map(row=>{
+    const nameObj=nameIdx>=0?splitName(row[nameIdx]):{first:'',last:''};
+    const rawSvc=idxMap['SERVICE_LEVEL']>=0?String(row[idxMap['SERVICE_LEVEL']]||'').trim():'';
+    const isPickup=PICKUP_SERVICES.has(rawSvc.toLowerCase());
+    const itemId=skuIdx>=0?String(row[skuIdx]||'').trim():'';
+    const phone2Val=idxMap['PHONE2']>=0?String(row[idxMap['PHONE2']]||'').trim():'';
+    const phone1Val=idxMap['PHONE1']>=0?String(row[idxMap['PHONE1']]||'').trim():'';
+    const primaryPhone=phone2Val||phone1Val;
+    return GH_TEMPLATE.map(gh=>{
+      if(gh==='FIRST_NAME')return nameObj.first;
+      if(gh==='LAST_NAME')return nameObj.last;
+      if(gh==='SERVICE_LEVEL')return translateServiceLevel(rawSvc);
+      if(gh==='STOP_TYPE')return isPickup?'2':'1';
+      if(gh==='ITEM_SERIAL_NUMBER')return itemId;
+      if(gh==='PHONE1')return primaryPhone;
+      if(gh==='VENDOR')return 'Fragilepak';
+      const si=idxMap[gh];
+      if(si!==undefined&&si>=0)return String(row[si]||'');
+      return '';
+    });
+  });
+  log.push({cls:'log-ok',text:'✓ ITEM_SKU → ITEM_SERIAL_NUMBER (duplicated)'});
+  log.push({cls:'log-ok',text:'✓ Consignee Phone 2 → PHONE1'});
+  log.push({cls:'log-ok',text:'✓ VENDOR = Fragilepak'});
+
+  const svcIdx=idxMap['SERVICE_LEVEL'];
+  if(svcIdx>=0){const u=new Set(data.map(r=>String(r[svcIdx]||'').trim()));const tr=[...u].filter(Boolean).map(s=>`${s} → ${translateServiceLevel(s)}`);log.push({cls:'log-ok',text:`✓ Service levels: ${tr.join(', ')}`});}
+
+  log.push({cls:'log-head',text:'✅ COMPLETE'});
+  log.push({cls:'log-ok',text:`Output: ${ghData.length} rows × 46 columns`});
+  const dp=targetDate.split('/');
+  const outputName=`FragilePak_Grasshopper_Import_${dp[2]}-${dp[0].padStart(2,'0')}-${dp[1].padStart(2,'0')}.csv`;
+  fpState={output:{headers:[...GH_TEMPLATE],data:ghData,name:outputName}};
+  showFpLog(log,false);
+}
+
+function showFpLog(log,isError){
+  const lh=log.map(l=>`<div class="log-step ${l.cls}">${l.text}</div>`).join('');const out=fpState.output;
+  openModal(`<h3 style="color:var(--purple);">📦 FragilePak — ${isError?'Issue Found':'Done'}</h3><div class="fp-log">${lh}</div>${!isError&&out?`<div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span style="font-size:13px;color:var(--text-dim);">Output: <strong style="color:var(--green);font-family:Consolas,monospace;">${esc(out.name)}</strong></span><span style="font-size:12px;color:var(--text-muted);">(${out.data.length} rows × 46 cols)</span></div><div class="modal-actions"><button class="btn" onclick="fpPreview()">👁 Preview</button><button class="btn purple" onclick="fpExport()">💾 Download CSV</button></div>`:`<div class="modal-actions"><button class="btn" onclick="openFragilePak()">← Try Again</button></div>`}`);
+}
+function fpPreview(){const{headers,data,name}=fpState.output;files.push({name,ext:'csv',headers:[...headers],data:data.map(r=>[...r])});selectFile(files.length-1);renderFileList();closeModal();showToast(`Loaded "${name}" for preview`,'success');}
+function fpExport(){const{headers,data,name}=fpState.output;downloadCSV(headers,data,name,GH_DESC_ROW);closeModal();}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ═══════  EFM PROCESS — ReportManager → Grasshopper  ══════════
+// ═══════════════════════════════════════════════════════════════
+// ReportManager columns:
+//   PODName, ShipmentDate, FK_ServiceLevelId, ConName,
+//   ConAddress1, ConAddress2, ConCity, ConZip, FK_ConState,
+//   ConPhone, ConRef, ShipName, ShipRef, TotalPieces,
+//   TotalWeight, VendorName
+//
+// Mapping:
+//   ShipRef → PO_NUMBER, ITEM_SKU, ITEM_SERIAL_NUMBER
+//   ConName → FIRST_NAME + LAST_NAME (split)
+//   ConAddress1/2 → ADDRESS1/ADDRESS2
+//   ConCity → CITY, FK_ConState → STATE, ConZip → ZIP
+//   ConPhone → PHONE1
+//   ShipName → ITEM_DESCRIPTION
+//   TotalPieces → QUANTITY
+//   TotalWeight → WEIGHT
+//   VendorName → VENDOR
+//   FK_ServiceLevelId: NS=unattended, SR=curb
+//   ShipmentDate → date filter (has timestamps)
+
+const EFM_MAP = {
+  PO_NUMBER:'ShipRef',
+  ADDRESS1:'ConAddress1',
+  ADDRESS2:'ConAddress2',
+  CITY:'ConCity',
+  STATE:'FK_ConState',
+  ZIP:'ConZip',
+  PHONE1:'ConPhone',
+  ITEM_SKU:'ShipRef',
+  ITEM_DESCRIPTION:'ShipName',
+  QUANTITY:'TotalPieces',
+  WEIGHT:'TotalWeight',
+  VENDOR:'VendorName'
+};
+const EFM_NAME_COL='ConName';
+const EFM_DATE_COL='ShipmentDate';
+const EFM_SVC_COL='FK_ServiceLevelId';
+const EFM_SVC_MAP={'ns':'unattended','sr':'curb'};
+
+let efmState={};
+
+function openEFM(){
+  let fo='';if(files.length>0)fo=`<div class="input-group"><label>Use Loaded File</label><select class="input" id="efmFileSelect"><option value="-1">— Upload new —</option>${files.map((f,i)=>`<option value="${i}">${f.name} (${f.data.length} rows)</option>`).join('')}</select></div>`;
+  openModal(`<h3 style="color:var(--orange);">🚛 EFM Process</h3><p>Load your ReportManager CSV and hit run.</p>${fo}<div class="input-group" id="efmUploadGroup"><label>ReportManager File</label><div class="dropzone" style="padding:16px;" onclick="document.getElementById('efmFileInput').click()"><div class="dropzone-text" id="efmFileName">Click to select a CSV file</div></div><input type="file" id="efmFileInput" accept=".csv" style="display:none;"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn" style="background:var(--orange);border-color:var(--orange);color:#fff;" onclick="efmRun()">⚡ Run Process</button></div>`);
+  document.getElementById('efmFileInput').addEventListener('change',e=>{if(e.target.files.length){document.getElementById('efmFileName').textContent=e.target.files[0].name;document.getElementById('efmFileName').style.color='var(--green)';}});
+  const sel=document.getElementById('efmFileSelect');if(sel)sel.addEventListener('change',()=>{document.getElementById('efmUploadGroup').style.display=sel.value==='-1'?'block':'none';});
+}
+
+async function efmRun(){
+  let src=null;const sel=document.getElementById('efmFileSelect');
+  if(sel&&sel.value!=='-1'){const idx=parseInt(sel.value);src={headers:[...files[idx].headers],data:files[idx].data.map(r=>[...r]),name:files[idx].name};}
+  else{const inp=document.getElementById('efmFileInput');if(!inp.files.length){showToast('Select a file','error');return;}try{src=await parseFileObj(inp.files[0]);}catch(e){showToast('Error reading file','error');return;}}
+  src.headers=src.headers.map(h=>String(h).trim().replace(/\r/g,''));
+
+  const log=[];
+  log.push({cls:'log-head',text:'EFM PROCESS — START'});
+  log.push({cls:'log-info',text:`Source: ${src.name} — ${src.data.length} rows × ${src.headers.length} cols`});
+
+  let data=src.data.map(r=>[...r]);
+  log.push({cls:'log-ok',text:`✓ Processing all ${data.length} rows`});
+
+  // STEP 1: Clean
+  log.push({cls:'log-head',text:'STEP 1 — Clean & normalize'});
+  let tc=0;data.forEach(r=>r.forEach((c,i)=>{const t=String(c).trim();if(t!==String(c)){r[i]=t;tc++;}}));
+  log.push({cls:'log-ok',text:`✓ Trimmed: ${tc} cells`});
+  const phIdx=findCol(src.headers,'ConPhone');
+  if(phIdx>=0){data.forEach(r=>{r[phIdx]=cleanPhone(r[phIdx]);});log.push({cls:'log-ok',text:'✓ ConPhone → 10 digits'});}
+  const zipIdx=findCol(src.headers,'ConZip');
+  if(zipIdx>=0){data.forEach(r=>{r[zipIdx]=cleanZip(r[zipIdx]);});log.push({cls:'log-ok',text:'✓ ConZip → 5 digits'});}
+  ['TotalWeight','TotalPieces'].forEach(col=>{const i=findCol(src.headers,col);if(i>=0){data.forEach(r=>{r[i]=cleanNumeric(r[i]);});log.push({cls:'log-ok',text:`✓ Cleaned: ${col}`});}});
+
+  // STEP 2: Map to Grasshopper
+  log.push({cls:'log-head',text:'STEP 2 — Map to Grasshopper (46 cols)'});
+  const nameIdx=findCol(src.headers,EFM_NAME_COL);
+  const svcIdx=findCol(src.headers,EFM_SVC_COL);
+  if(nameIdx>=0)log.push({cls:'log-ok',text:'✓ Splitting ConName → FIRST + LAST'});
+
+  // Build index map
+  const idxMap={};let mapped=0;
+  for(const[ghCol,dtCol]of Object.entries(EFM_MAP)){idxMap[ghCol]=findCol(src.headers,dtCol);if(idxMap[ghCol]>=0)mapped++;}
+  if(nameIdx>=0)mapped+=2;
+  log.push({cls:'log-ok',text:`✓ Mapped ${mapped} of 46 columns`});
+
+  const efmData=data.map(row=>{
+    const nameObj=nameIdx>=0?splitName(row[nameIdx]):{first:'',last:''};
+    const rawSvc=svcIdx>=0?String(row[svcIdx]||'').trim().toLowerCase():'';
+    const svcCode=EFM_SVC_MAP[rawSvc]||rawSvc;
+    const shipRef=idxMap['PO_NUMBER']>=0?String(row[idxMap['PO_NUMBER']]||'').trim():'';
+    return GH_TEMPLATE.map(gh=>{
+      if(gh==='FIRST_NAME')return nameObj.first;
+      if(gh==='LAST_NAME')return nameObj.last;
+      if(gh==='SERVICE_LEVEL')return svcCode;
+      if(gh==='STOP_TYPE')return '1';
+      if(gh==='ITEM_SERIAL_NUMBER')return shipRef;
+      const si=idxMap[gh];
+      if(si!==undefined&&si>=0)return String(row[si]||'');
+      return '';
+    });
+  });
+
+  // Log service level translations
+  if(svcIdx>=0){const u=new Set(data.map(r=>String(r[svcIdx]||'').trim()));const tr=[...u].filter(Boolean).map(s=>`${s} → ${EFM_SVC_MAP[s.toLowerCase()]||s}`);log.push({cls:'log-ok',text:`✓ Service levels: ${tr.join(', ')}`});}
+  log.push({cls:'log-ok',text:'✓ ShipRef → PO_NUMBER + ITEM_SKU + ITEM_SERIAL_NUMBER'});
+  log.push({cls:'log-ok',text:'✓ ShipName → ITEM_DESCRIPTION'});
+  log.push({cls:'log-ok',text:'✓ VendorName → VENDOR'});
+
+  log.push({cls:'log-head',text:'✅ COMPLETE'});
+  log.push({cls:'log-ok',text:`Output: ${efmData.length} rows × 46 columns`});
+
+  const now=new Date();const outputName=`EFM_Grasshopper_Import_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.csv`;
+  efmState={output:{headers:[...GH_TEMPLATE],data:efmData,name:outputName}};
+  showEfmLog(log,false);
+}
+
+function showEfmLog(log,isError){
+  const lh=log.map(l=>`<div class="log-step ${l.cls}">${l.text}</div>`).join('');const out=efmState.output;
+  openModal(`<h3 style="color:var(--orange);">🚛 EFM — ${isError?'Issue Found':'Done'}</h3><div class="fp-log">${lh}</div>${!isError&&out?`<div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span style="font-size:13px;color:var(--text-dim);">Output: <strong style="color:var(--green);font-family:Consolas,monospace;">${esc(out.name)}</strong></span><span style="font-size:12px;color:var(--text-muted);">(${out.data.length} rows × 46 cols)</span></div><div class="modal-actions"><button class="btn" onclick="efmPreview()">👁 Preview</button><button class="btn" style="background:var(--orange);border-color:var(--orange);color:#fff;" onclick="efmExport()">💾 Download CSV</button></div>`:`<div class="modal-actions"><button class="btn" onclick="openEFM()">← Try Again</button></div>`}`);
+}
+function efmPreview(){const{headers,data,name}=efmState.output;files.push({name,ext:'csv',headers:[...headers],data:data.map(r=>[...r])});selectFile(files.length-1);renderFileList();closeModal();showToast(`Loaded "${name}" for preview`,'success');}
+function efmExport(){const{headers,data,name}=efmState.output;downloadCSV(headers,data,name,GH_DESC_ROW);closeModal();}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ═══════  CATO PROCESS — PDF Route Splitting  ═════════════════
+// ═══════════════════════════════════════════════════════════════
+
+const CATO_ROUTES={
+  OKC:{
+    monday:['594','192','640','275','985','1127','7635'],
+    tuesday:['406','658','412','4034','508','1207','1036','1085']
+  },
+  TUL:{
+    monday:['272','358','589','1229','4051','4052','577','629','1039','492','1048'],
+    tuesday:['672','714','910','1356','372','12','117']
+  }
+};
+let catoState={};
+
+// --- Robust PDF Parsing ---
+
+// Try decompression with multiple methods
+async function tryInflate(data){
+  for(const method of ['deflate','deflate-raw']){
+    try{
+      const ds=new DecompressionStream(method);
+      const w=ds.writable.getWriter();w.write(data);w.close();
+      const r=ds.readable.getReader();const chunks=[];
+      while(true){const{done,value}=await r.read();if(done)break;chunks.push(value);}
+      let total=0;for(const c of chunks)total+=c.length;
+      const result=new Uint8Array(total);let off=0;
+      for(const c of chunks){result.set(c,off);off+=c.length;}
+      if(result.length>0)return result;
+    }catch(e){}
+  }
+  if(data.length>2){
+    try{
+      const ds=new DecompressionStream('deflate-raw');
+      const w=ds.writable.getWriter();w.write(data.slice(2));w.close();
+      const r=ds.readable.getReader();const chunks=[];
+      while(true){const{done,value}=await r.read();if(done)break;chunks.push(value);}
+      let total=0;for(const c of chunks)total+=c.length;
+      const result=new Uint8Array(total);let off=0;
+      for(const c of chunks){result.set(c,off);off+=c.length;}
+      if(result.length>0)return result;
+    }catch(e){}
+  }
+  return null;
+}
+
+function bytesToStr(bytes,start,len){
+  let s='';const end=Math.min(start+len,bytes.length);
+  for(let i=start;i<end;i++)s+=String.fromCharCode(bytes[i]);
+  return s;
+}
+
+// Parse a ToUnicode CMap and return a map of charCode→unicodeChar
+function parseCMap(cmapText){
+  const map={};
+  // Parse bfchar entries: <srcCode> <unicodeValue>
+  const charRe=/beginbfchar\s+([\s\S]*?)endbfchar/g;
+  let cm;
+  while((cm=charRe.exec(cmapText))!==null){
+    const pairs=[...cm[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)];
+    for(const p of pairs){
+      const code=parseInt(p[1],16);
+      const uni=parseInt(p[2],16);
+      map[code]=String.fromCharCode(uni);
+    }
+  }
+  // Parse bfrange entries: <startCode> <endCode> <startUnicode>
+  const rangeRe=/beginbfrange\s+([\s\S]*?)endbfrange/g;
+  while((cm=rangeRe.exec(cmapText))!==null){
+    const entries=[...cm[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)];
+    for(const e of entries){
+      const start=parseInt(e[1],16);
+      const end=parseInt(e[2],16);
+      const uniStart=parseInt(e[3],16);
+      for(let c=start;c<=end;c++){
+        map[c]=String.fromCharCode(uniStart+(c-start));
+      }
+    }
+  }
+  return map;
+}
+
+// Decode a hex string using a combined CMap
+function decodeHexString(hex,cmap){
+  hex=hex.replace(/\s/g,'');
+  let result='';
+  // Try 2-byte (16-bit) character codes first
+  if(hex.length%4===0){
+    for(let i=0;i<hex.length;i+=4){
+      const code=parseInt(hex.substring(i,i+4),16);
+      if(cmap[code])result+=cmap[code];
+      else result+=String.fromCharCode(code);
+    }
+    return result;
+  }
+  // Fallback: 1-byte codes
+  for(let i=0;i<hex.length;i+=2){
+    const code=parseInt(hex.substring(i,i+2),16);
+    if(cmap[code])result+=cmap[code];
+    else if(code>=32&&code<127)result+=String.fromCharCode(code);
+  }
+  return result;
+}
+
+// Extract text from decompressed content stream using CMap
+function extractStreamText(bytes,cmap){
+  const str=bytesToStr(bytes,0,bytes.length);
+  const texts=[];
+
+  // Decode hex strings: <AABB...> Tj or within [...] TJ arrays
+  const hexRe=/<([0-9A-Fa-f\s]{4,})>/g;
+  let hm;
+  while((hm=hexRe.exec(str))!==null){
+    const decoded=decodeHexString(hm[1],cmap);
+    if(decoded.length>0)texts.push(decoded);
+  }
+
+  // Also extract parenthesized strings: (text) Tj
+  let i=0;
+  while(i<str.length){
+    if(str[i]==='('){
+      let depth=1;let s='';i++;
+      while(i<str.length&&depth>0){
+        if(str[i]==='\\'){if(i+1<str.length){s+=str[i+1];i+=2;continue;}}
+        if(str[i]==='(')depth++;
+        if(str[i]===')'){depth--;if(depth===0){i++;break;}}
+        if(depth>0)s+=str[i];
+        i++;
+      }
+      if(s.length>0)texts.push(s);
+    }else{i++;}
+  }
+  return texts.join(' ');
+}
+
+// Find store number in text
+function findStoreInText(text){
+  const patterns=[
+    /CATO\s*STORE\s*#\s*(\d{1,5})/i,
+    /SALLY\s*(?:BEAUTY\s*)?STORE\s*#\s*(\d{1,5})/i,
+    /CONSIGNEE[:\s]*(?:CATO|SALLY)\s*(?:BEAUTY\s*)?STORE\s*#?\s*(\d{1,5})/i,
+    /STORE\s*#\s*(\d{1,5})/i,
+    /(\d{1,5})\s*SHIP\s*FROM/i
+  ];
+  for(const p of patterns){
+    const m=text.match(p);
+    if(m&&parseInt(m[1])>0&&parseInt(m[1])<99999)return m[1];
+  }
+  return null;
+}
+
+async function catoParsePDF(buffer){
+  const bytes=new Uint8Array(buffer);
+  const fullStr=bytesToStr(bytes,0,bytes.length);
+
+  // Find all indirect objects
+  const objs={};
+  const objRe=/(\d+)\s+0\s+obj/g;
+  let m;while((m=objRe.exec(fullStr))!==null){
+    objs[parseInt(m[1])]={pos:m.index};
+  }
+
+  function getObjBody(num){
+    if(!objs[num])return '';
+    const end=fullStr.indexOf('endobj',objs[num].pos);
+    return fullStr.substring(objs[num].pos,end!==-1?end+6:objs[num].pos+5000);
+  }
+
+  // Find Root → Pages
+  const rootM=fullStr.match(/\/Root\s+(\d+)\s+0\s+R/);
+  if(!rootM)throw new Error('Cannot find PDF Root');
+  const rootBody=getObjBody(parseInt(rootM[1]));
+  const pagesM=rootBody.match(/\/Pages\s+(\d+)\s+0\s+R/);
+  if(!pagesM)throw new Error('Cannot find Pages');
+  const pagesNum=parseInt(pagesM[1]);
+
+  // Walk page tree
+  const pageObjNums=[];
+  function walkPages(num){
+    if(!objs[num])return;
+    const body=getObjBody(num);
+    if(/\/Type\s*\/Page[^s]/i.test(body)||(/\/Type\s*\/Page\b/.test(body)&&!/\/Type\s*\/Pages/.test(body))){
+      pageObjNums.push(num);
+    }else{
+      const kM=body.match(/\/Kids\s*\[([^\]]+)\]/);
+      if(kM){
+        const kids=[...kM[1].matchAll(/(\d+)\s+\d+\s+R/g)].map(k=>parseInt(k[1]));
+        for(const kid of kids)walkPages(kid);
+      }
+    }
+  }
+  walkPages(pagesNum);
+  if(pageObjNums.length===0)throw new Error('No pages found');
+
+  // Find ALL ToUnicode CMap references and build a combined mapping
+  const combinedCMap={};
+  const toUnicodeRefs=[...fullStr.matchAll(/\/ToUnicode\s+(\d+)\s+0\s+R/g)].map(m=>parseInt(m[1]));
+  const uniqueRefs=[...new Set(toUnicodeRefs)];
+
+  for(const cmapNum of uniqueRefs){
+    if(!objs[cmapNum])continue;
+    const cmapBody=getObjBody(cmapNum);
+    const si=cmapBody.indexOf('stream');
+    if(si===-1)continue;
+    const lenM=cmapBody.match(/\/Length\s+(\d+)/);
+    if(!lenM)continue;
+    const slen=parseInt(lenM[1]);
+    if(slen<=0)continue;
+
+    let ds=objs[cmapNum].pos+si+6;
+    if(bytes[ds]===13)ds++;
+    if(bytes[ds]===10)ds++;
+    const rawData=bytes.slice(ds,ds+slen);
+
+    let cmapData=rawData;
+    if(cmapBody.includes('/FlateDecode')){
+      const inflated=await tryInflate(rawData);
+      if(inflated)cmapData=inflated;
+    }
+    const cmapText=bytesToStr(cmapData,0,cmapData.length);
+    const thisMap=parseCMap(cmapText);
+    Object.assign(combinedCMap,thisMap);
+  }
+
+  // Extract text from each page's content stream(s)
+  const pages=[];
+  for(let pi=0;pi<pageObjNums.length;pi++){
+    const num=pageObjNums[pi];
+    const body=getObjBody(num);
+
+    let contentNums=[];
+    const cSingle=body.match(/\/Contents\s+(\d+)\s+0\s+R/);
+    const cArr=body.match(/\/Contents\s*\[([^\]]+)\]/);
+    if(cSingle)contentNums=[parseInt(cSingle[1])];
+    else if(cArr)contentNums=[...cArr[1].matchAll(/(\d+)\s+\d+\s+R/g)].map(x=>parseInt(x[1]));
+
+    let pageText='';
+    for(const cNum of contentNums){
+      if(!objs[cNum])continue;
+      const cBody=getObjBody(cNum);
+      const si=cBody.indexOf('stream');
+      if(si===-1)continue;
+      const lenM=cBody.match(/\/Length\s+(\d+)/);
+      if(!lenM)continue;
+      const slen=parseInt(lenM[1]);
+      if(slen<=0)continue;
+
+      let ds=objs[cNum].pos+si+6;
+      if(bytes[ds]===13)ds++;
+      if(bytes[ds]===10)ds++;
+      const rawData=bytes.slice(ds,ds+slen);
+
+      let streamData=rawData;
+      if(cBody.includes('/FlateDecode')){
+        const inflated=await tryInflate(rawData);
+        if(inflated)streamData=inflated;
+      }
+      const text=extractStreamText(streamData,combinedCMap);
+      if(text)pageText+=text+' ';
+    }
+    pages.push({index:pi,objNum:num,text:pageText});
+  }
+
+  const sizeM=fullStr.match(/\/Size\s+(\d+)/);
+  const pdfSize=sizeM?parseInt(sizeM[1]):Math.max(...Object.keys(objs).map(Number))+1;
+
+  return{pages,pagesObjNum:pagesNum,rootRef:rootM[0].match(/(\d+\s+0\s+R)/)[1],pdfSize};
+}
+
+function catoBuildSubsetPDF(sourceBuffer,pagesObjNum,desiredPageObjNums,rootRef,pdfSize){
+  const srcBytes=new Uint8Array(sourceBuffer);
+  const srcStr=bytesToStr(srcBytes,0,srcBytes.length);
+
+  const sxM=srcStr.lastIndexOf('startxref');
+  const prevXref=parseInt(srcStr.substring(sxM+9).trim());
+
+  const kidsStr=desiredPageObjNums.map(n=>`${n} 0 R`).join(' ');
+  const newPagesObj=`${pagesObjNum} 0 obj\n<< /Type /Pages /Kids [${kidsStr}] /Count ${desiredPageObjNums.length} >>\nendobj\n`;
+  const newPagesBytes=new TextEncoder().encode(newPagesObj);
+  const newObjOffset=srcBytes.length;
+
+  const offsetStr=String(newObjOffset).padStart(10,'0');
+  const xrefSection=`xref\n${pagesObjNum} 1\n${offsetStr} 00000 n \n`;
+  const xrefBytes=new TextEncoder().encode(xrefSection);
+  const newXrefOffset=newObjOffset+newPagesBytes.length;
+
+  const trailer=`trailer\n<< /Size ${pdfSize} /Root ${rootRef} /Prev ${prevXref} >>\nstartxref\n${newXrefOffset}\n%%EOF\n`;
+  const trailerBytes=new TextEncoder().encode(trailer);
+
+  const total=srcBytes.length+newPagesBytes.length+xrefBytes.length+trailerBytes.length;
+  const result=new Uint8Array(total);
+  let off=0;
+  result.set(srcBytes,off);off+=srcBytes.length;
+  result.set(newPagesBytes,off);off+=newPagesBytes.length;
+  result.set(xrefBytes,off);off+=xrefBytes.length;
+  result.set(trailerBytes,off);
+  return result;
+}
+
+// --- Cato UI ---
+
+function openCato(){
+  openModal(`
+    <h3 style="color:var(--accent);">📄 Cato Process</h3>
+    <p>Upload a CATO master PDF. Select the hub. Pages are split into Monday &amp; Tuesday route PDFs with each store's pages duplicated.</p>
+    <div class="input-group">
+      <label>CATO Master PDF</label>
+      <div class="dropzone" style="padding:16px;" onclick="document.getElementById('catoFileInput').click()">
+        <div class="dropzone-text" id="catoFileName">Click to select a PDF file</div>
+      </div>
+      <input type="file" id="catoFileInput" accept=".pdf" style="display:none;">
+    </div>
+    <div class="input-group">
+      <label>Hub</label>
+      <select class="input" id="catoHub">
+        <option value="OKC">OKC</option>
+        <option value="TUL">TUL</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="catoRun()">⚡ Run Process</button>
+    </div>
+  `);
+  document.getElementById('catoFileInput').addEventListener('change',e=>{
+    if(e.target.files.length){
+      document.getElementById('catoFileName').textContent=e.target.files[0].name;
+      document.getElementById('catoFileName').style.color='var(--green)';
+    }
+  });
+}
+
+async function catoRun(){
+  const inp=document.getElementById('catoFileInput');
+  if(!inp.files.length){showToast('Select a PDF file','error');return;}
+  const hub=document.getElementById('catoHub').value;
+  const file=inp.files[0];
+  const buffer=await file.arrayBuffer();
+
+  const log=[];
+  log.push({cls:'log-head',text:'CATO PROCESS — START'});
+  log.push({cls:'log-info',text:`Source: ${file.name} (${(file.size/1024).toFixed(1)} KB)`});
+  log.push({cls:'log-info',text:`Hub: ${hub}`});
+
+  // Step 1: Parse PDF
+  log.push({cls:'log-head',text:'STEP 1 — Parse PDF & extract store numbers'});
+  let parsed;
+  try{
+    parsed=await catoParsePDF(buffer);
+    log.push({cls:'log-ok',text:`✓ Found ${parsed.pages.length} pages`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ PDF parse error: ${e.message}`});
+    catoState={};showCatoLog(log,true);return;
+  }
+
+  // Step 2: Detect store numbers
+  log.push({cls:'log-head',text:'STEP 2 — Detect store numbers'});
+  const storeMap={};
+  let undetected=0;
+  for(const page of parsed.pages){
+    const store=findStoreInText(page.text);
+    if(store){
+      if(!storeMap[store])storeMap[store]=[];
+      storeMap[store].push(page.objNum);
+      log.push({cls:'log-ok',text:`✓ Page ${page.index+1} → Store #${store}`});
+    }else{
+      undetected++;
+      log.push({cls:'log-warn',text:`⚠ Page ${page.index+1} — no store detected`});
+    }
+  }
+  log.push({cls:'log-info',text:`Detected ${Object.keys(storeMap).length} unique stores from ${parsed.pages.length} pages`});
+
+  // Step 3: Validate
+  log.push({cls:'log-head',text:'STEP 3 — Validate required stores'});
+  const routes=CATO_ROUTES[hub];
+  if(!routes||(!routes.monday.length&&!routes.tuesday.length)){
+    log.push({cls:'log-warn',text:`⚠ No routes configured for hub: ${hub}`});
+    catoState={};showCatoLog(log,true);return;
+  }
+  const allRequired=[...routes.monday,...routes.tuesday];
+  const missing=allRequired.filter(s=>!storeMap[s]);
+  if(missing.length>0){
+    log.push({cls:'log-warn',text:`⚠ MISSING STORES: ${missing.join(', ')}`});
+    log.push({cls:'log-warn',text:'Cannot continue — all required stores must be present'});
+    log.push({cls:'log-info',text:`Stores found: ${Object.keys(storeMap).sort((a,b)=>parseInt(a)-parseInt(b)).join(', ')}`});
+    catoState={};showCatoLog(log,true);return;
+  }
+  log.push({cls:'log-ok',text:`✓ All ${allRequired.length} required ${hub} stores found`});
+
+  // Step 4: Build Monday PDF
+  log.push({cls:'log-head',text:'STEP 4 — Build Monday route PDF'});
+  const monPages=[];
+  for(const store of routes.monday){
+    const p=storeMap[store];
+    monPages.push(...p,...p);
+    log.push({cls:'log-ok',text:`✓ Store #${store}: ${p.length} page(s) × 2`});
+  }
+  log.push({cls:'log-info',text:`Monday total: ${monPages.length} pages`});
+
+  let monPDF;
+  try{
+    monPDF=catoBuildSubsetPDF(buffer,parsed.pagesObjNum,monPages,parsed.rootRef,parsed.pdfSize);
+    log.push({cls:'log-ok',text:`✓ Monday PDF built (${(monPDF.length/1024).toFixed(1)} KB)`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ Monday PDF build error: ${e.message}`});
+    catoState={};showCatoLog(log,true);return;
+  }
+
+  // Step 5: Build Tuesday PDF
+  log.push({cls:'log-head',text:'STEP 5 — Build Tuesday route PDF'});
+  const tuePages=[];
+  for(const store of routes.tuesday){
+    const p=storeMap[store];
+    tuePages.push(...p,...p);
+    log.push({cls:'log-ok',text:`✓ Store #${store}: ${p.length} page(s) × 2`});
+  }
+  log.push({cls:'log-info',text:`Tuesday total: ${tuePages.length} pages`});
+
+  let tuePDF;
+  try{
+    tuePDF=catoBuildSubsetPDF(buffer,parsed.pagesObjNum,tuePages,parsed.rootRef,parsed.pdfSize);
+    log.push({cls:'log-ok',text:`✓ Tuesday PDF built (${(tuePDF.length/1024).toFixed(1)} KB)`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ Tuesday PDF build error: ${e.message}`});
+    catoState={};showCatoLog(log,true);return;
+  }
+
+  log.push({cls:'log-head',text:'✅ COMPLETE'});
+  log.push({cls:'log-ok',text:`Monday: ${routes.monday.length} stores, ${monPages.length} pages`});
+  log.push({cls:'log-ok',text:`Tuesday: ${routes.tuesday.length} stores, ${tuePages.length} pages`});
+
+  const now=new Date();
+  const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  catoState={
+    monPDF,tuePDF,hub,
+    monName:`CATO_Monday_${hub}_${ds}.pdf`,
+    tueName:`CATO_Tuesday_${hub}_${ds}.pdf`
+  };
+  showCatoLog(log,false);
+}
+
+function showCatoLog(log,isError){
+  const lh=log.map(l=>`<div class="log-step ${l.cls}">${l.text}</div>`).join('');
+  const st=catoState;
+  openModal(`
+    <h3 style="color:var(--accent);">📄 Cato — ${isError?'Issue Found':'Done'}</h3>
+    <div class="fp-log">${lh}</div>
+    ${!isError&&st.monPDF?`
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <span style="font-size:13px;color:var(--text-dim);font-family:Consolas,monospace;">${esc(st.monName)}</span>
+          <button class="btn primary" onclick="catoDownload('mon')" style="padding:5px 12px;">💾 Download</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <span style="font-size:13px;color:var(--text-dim);font-family:Consolas,monospace;">${esc(st.tueName)}</span>
+          <button class="btn primary" onclick="catoDownload('tue')" style="padding:5px 12px;">💾 Download</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+        <button class="btn primary" onclick="catoDownload('both')">💾 Download Both</button>
+      </div>
+    `:`<div class="modal-actions"><button class="btn" onclick="openCato()">← Try Again</button></div>`}
+  `);
+}
+
+function catoDownload(which){
+  const st=catoState;
+  function dl(data,name){
+    const blob=new Blob([data],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;a.click();
+    URL.revokeObjectURL(url);
+  }
+  if(which==='mon'||which==='both'){dl(st.monPDF,st.monName);showToast(`Downloaded ${st.monName}`,'success');}
+  if(which==='tue'||which==='both'){setTimeout(()=>{dl(st.tuePDF,st.tueName);showToast(`Downloaded ${st.tueName}`,'success');},which==='both'?500:0);}
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ═══════  SALLY PROCESS — PDF Route Splitting  ════════════════
+// ═══════════════════════════════════════════════════════════════
+
+const SALLY_ROUTES={
+  OKC:{
+    monday:['3402','2209','3407','3438','3474','3494','3426','227','3737','2526'],
+    tuesday:['3358','3378','3388','10243','3579','2498','3280','2712','3471','1652','2701']
+  },
+  TUL:{
+    monday:['1708','3403','3783','10430','3303','10235','10695','1556'],
+    tuesday:['2658','249','10647','10358','1706','3295','10244','2489','191']
+  }
+};
+let sallyState={};
+
+function openSally(){
+  openModal(`
+    <h3 style="color:var(--green);">📄 Sally Process</h3>
+    <p>Upload a Sally master PDF. Select the hub. Pages are split into Monday &amp; Tuesday route PDFs with each store's pages duplicated.</p>
+    <div class="input-group">
+      <label>Sally Master PDF</label>
+      <div class="dropzone" style="padding:16px;" onclick="document.getElementById('sallyFileInput').click()">
+        <div class="dropzone-text" id="sallyFileName">Click to select a PDF file</div>
+      </div>
+      <input type="file" id="sallyFileInput" accept=".pdf" style="display:none;">
+    </div>
+    <div class="input-group">
+      <label>Hub</label>
+      <select class="input" id="sallyHub">
+        <option value="OKC">OKC</option>
+        <option value="TUL">TUL</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="sallyRun()">⚡ Run Process</button>
+    </div>
+  `);
+  document.getElementById('sallyFileInput').addEventListener('change',e=>{
+    if(e.target.files.length){
+      document.getElementById('sallyFileName').textContent=e.target.files[0].name;
+      document.getElementById('sallyFileName').style.color='var(--green)';
+    }
+  });
+}
+
+async function sallyRun(){
+  const inp=document.getElementById('sallyFileInput');
+  if(!inp.files.length){showToast('Select a PDF file','error');return;}
+  const hub=document.getElementById('sallyHub').value;
+  const file=inp.files[0];
+  const buffer=await file.arrayBuffer();
+
+  const log=[];
+  log.push({cls:'log-head',text:'SALLY PROCESS — START'});
+  log.push({cls:'log-info',text:`Source: ${file.name} (${(file.size/1024).toFixed(1)} KB)`});
+  log.push({cls:'log-info',text:`Hub: ${hub}`});
+
+  log.push({cls:'log-head',text:'STEP 1 — Parse PDF & extract store numbers'});
+  let parsed;
+  try{
+    parsed=await catoParsePDF(buffer);
+    log.push({cls:'log-ok',text:`✓ Found ${parsed.pages.length} pages`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ PDF parse error: ${e.message}`});
+    sallyState={};showSallyLog(log,true);return;
+  }
+
+  log.push({cls:'log-head',text:'STEP 2 — Detect store numbers'});
+  const storeMap={};
+  let undetected=0;
+  for(const page of parsed.pages){
+    const store=findStoreInText(page.text);
+    if(store){
+      if(!storeMap[store])storeMap[store]=[];
+      storeMap[store].push(page.objNum);
+      log.push({cls:'log-ok',text:`✓ Page ${page.index+1} → Store #${store}`});
+    }else{
+      undetected++;
+      log.push({cls:'log-warn',text:`⚠ Page ${page.index+1} — no store detected`});
+    }
+  }
+  log.push({cls:'log-info',text:`Detected ${Object.keys(storeMap).length} unique stores from ${parsed.pages.length} pages`});
+
+  log.push({cls:'log-head',text:'STEP 3 — Validate required stores'});
+  const routes=SALLY_ROUTES[hub];
+  if(!routes||(!routes.monday.length&&!routes.tuesday.length)){
+    log.push({cls:'log-warn',text:`⚠ No routes configured for hub: ${hub}`});
+    sallyState={};showSallyLog(log,true);return;
+  }
+  const allRequired=[...routes.monday,...routes.tuesday];
+  const missing=allRequired.filter(s=>!storeMap[s]);
+  if(missing.length>0){
+    log.push({cls:'log-warn',text:`⚠ MISSING STORES: ${missing.join(', ')}`});
+    log.push({cls:'log-warn',text:'Cannot continue — all required stores must be present'});
+    log.push({cls:'log-info',text:`Stores found: ${Object.keys(storeMap).sort((a,b)=>parseInt(a)-parseInt(b)).join(', ')}`});
+    sallyState={};showSallyLog(log,true);return;
+  }
+  log.push({cls:'log-ok',text:`✓ All ${allRequired.length} required ${hub} stores found`});
+
+  log.push({cls:'log-head',text:'STEP 4 — Build Monday route PDF'});
+  const monPages=[];
+  for(const store of routes.monday){
+    const p=storeMap[store];
+    monPages.push(...p,...p);
+    log.push({cls:'log-ok',text:`✓ Store #${store}: ${p.length} page(s) × 2`});
+  }
+  log.push({cls:'log-info',text:`Monday total: ${monPages.length} pages`});
+
+  let monPDF;
+  try{
+    monPDF=catoBuildSubsetPDF(buffer,parsed.pagesObjNum,monPages,parsed.rootRef,parsed.pdfSize);
+    log.push({cls:'log-ok',text:`✓ Monday PDF built (${(monPDF.length/1024).toFixed(1)} KB)`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ Monday PDF build error: ${e.message}`});
+    sallyState={};showSallyLog(log,true);return;
+  }
+
+  log.push({cls:'log-head',text:'STEP 5 — Build Tuesday route PDF'});
+  const tuePages=[];
+  for(const store of routes.tuesday){
+    const p=storeMap[store];
+    tuePages.push(...p,...p);
+    log.push({cls:'log-ok',text:`✓ Store #${store}: ${p.length} page(s) × 2`});
+  }
+  log.push({cls:'log-info',text:`Tuesday total: ${tuePages.length} pages`});
+
+  let tuePDF;
+  try{
+    tuePDF=catoBuildSubsetPDF(buffer,parsed.pagesObjNum,tuePages,parsed.rootRef,parsed.pdfSize);
+    log.push({cls:'log-ok',text:`✓ Tuesday PDF built (${(tuePDF.length/1024).toFixed(1)} KB)`});
+  }catch(e){
+    log.push({cls:'log-warn',text:`⚠ Tuesday PDF build error: ${e.message}`});
+    sallyState={};showSallyLog(log,true);return;
+  }
+
+  log.push({cls:'log-head',text:'✅ COMPLETE'});
+  log.push({cls:'log-ok',text:`Monday: ${routes.monday.length} stores, ${monPages.length} pages`});
+  log.push({cls:'log-ok',text:`Tuesday: ${routes.tuesday.length} stores, ${tuePages.length} pages`});
+
+  const now=new Date();
+  const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  sallyState={
+    monPDF,tuePDF,hub,
+    monName:`Sally_Monday_${hub}_${ds}.pdf`,
+    tueName:`Sally_Tuesday_${hub}_${ds}.pdf`
+  };
+  showSallyLog(log,false);
+}
+
+function showSallyLog(log,isError){
+  const lh=log.map(l=>`<div class="log-step ${l.cls}">${l.text}</div>`).join('');
+  const st=sallyState;
+  openModal(`
+    <h3 style="color:var(--green);">📄 Sally — ${isError?'Issue Found':'Done'}</h3>
+    <div class="fp-log">${lh}</div>
+    ${!isError&&st.monPDF?`
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <span style="font-size:13px;color:var(--text-dim);font-family:Consolas,monospace;">${esc(st.monName)}</span>
+          <button class="btn primary" onclick="sallyDownload('mon')" style="padding:5px 12px;">💾 Download</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <span style="font-size:13px;color:var(--text-dim);font-family:Consolas,monospace;">${esc(st.tueName)}</span>
+          <button class="btn primary" onclick="sallyDownload('tue')" style="padding:5px 12px;">💾 Download</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+        <button class="btn primary" onclick="sallyDownload('both')">💾 Download Both</button>
+      </div>
+    `:`<div class="modal-actions"><button class="btn" onclick="openSally()">← Try Again</button></div>`}
+  `);
+}
+
+function sallyDownload(which){
+  const st=sallyState;
+  function dl(data,name){
+    const blob=new Blob([data],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;a.click();
+    URL.revokeObjectURL(url);
+  }
+  if(which==='mon'||which==='both'){dl(st.monPDF,st.monName);showToast(`Downloaded ${st.monName}`,'success');}
+  if(which==='tue'||which==='both'){setTimeout(()=>{dl(st.tuePDF,st.tueName);showToast(`Downloaded ${st.tueName}`,'success');},which==='both'?500:0);}
+}
+</script>
+</body>
+</html>
