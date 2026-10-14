@@ -15,7 +15,8 @@
   .logo-text{font-family:-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.3px;color:var(--text);}
   .file-count{font-size:13px;color:var(--text-dim);font-weight:500;background:var(--surface2);padding:6px 14px;border-radius:20px;border:1px solid var(--border);}
   .app{display:flex;height:calc(100vh - 77px);}
-  .sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--border-light) transparent;}
+  .sidebar>*{flex-shrink:0;}
   .sidebar-section{padding:16px;border-bottom:1px solid var(--border);}
   .sidebar-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:12px;font-weight:600;}
   .fp-banner{background:linear-gradient(135deg,rgba(160,110,240,0.15),rgba(91,141,239,0.1));border:1px solid rgba(160,110,240,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
@@ -41,7 +42,7 @@
   .dropzone-text{font-size:13px;color:var(--text-dim);line-height:1.5;}
   .dropzone-text strong{color:var(--accent);}
   input[type="file"]{display:none;}
-  .file-list{flex:1;overflow-y:auto;padding:8px;}
+  .file-list{flex:1 0 auto;min-height:60px;padding:8px;}
   .file-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;margin-bottom:2px;}
   .file-item:hover{background:var(--surface2);}
   .file-item.active{background:var(--accent-bg);border:1px solid rgba(91,141,239,0.25);}
@@ -225,7 +226,7 @@
     </div>
     <div class="table-container" id="tableContainer">
       <div class="empty-state"><div style="font-size:56px;opacity:0.3;">🚚</div><h2>DataForge</h2>
-        <p>Drop a CSV file into the sidebar to get started, or run <strong style="color:var(--purple);">FragilePak</strong>, <strong style="color:var(--orange);">EFM</strong>, <strong style="color:var(--accent);">Cato</strong>, <strong style="color:var(--green);">Sally</strong>, <strong style="color:var(--red);">Shoe Show</strong>, or <strong style="color:#00b4d8;">EFW HAWB</strong> to process your files.</p>
+        <p>Drop a CSV file into the sidebar to get started, or run <strong style="color:var(--purple);">FragilePak</strong>, <strong style="color:var(--orange);">EFM</strong>, <strong style="color:var(--accent);">Cato</strong>, <strong style="color:var(--green);">Sally</strong>, <strong style="color:var(--red);">Shoe Show</strong>, <strong style="color:#00b4d8;">EFW HAWB</strong>, or <strong style="color:#f5c400;">Ryder</strong> to process your files.</p>
       </div>
     </div>
     <div class="statusbar" id="statusbar" style="display:none;">
