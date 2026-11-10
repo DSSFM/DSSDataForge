@@ -936,7 +936,8 @@ function hawbDocsFromPages(pages){
 
 // ── Merge files by waybill, check weight/dims, build Grasshopper rows ───
 const HAWB_REQ=['PO_NUMBER','FIRST_NAME','LAST_NAME','ADDRESS1','CITY','STATE','ZIP','PHONE1','ITEM_SKU','ITEM_DESCRIPTION','WEIGHT','QUANTITY','VENDOR','SERVICE_LEVEL','STOP_TYPE'];
-const HAWB_FA_PREFIX='FA EFW'; // vendor prefix when the Delivery Alert carrier is Forward Air
+// Bill-to name (uppercase) -> short vendor name. Anything not listed is used as printed.
+const HAWB_VENDOR_ALIASES={'TARGET DVS':'TARGET'};
 const HAWB_MAX_DIM=120;        // inches; any side over this gets a "verify" warning
 const HAWB_MAX_PIECE_LBS=2500; // per piece; heavier gets a "verify" warning
 function hawbDims(r){return[r.length,r.width,r.height];}
@@ -1023,9 +1024,16 @@ function hawbCheckOrder(g){
   if(!H.vendor)o.errors.push('Bill-to name (VENDOR) missing');
   o.service=svcRaw;o.svc=svc;
   // Freight picked up from Forward Air (carrier on the Delivery Alert): vendor reads "FA EFW <bill-to>"
-  o.vendor=H.vendor||'';
-  const fa=g.alerts.find(a=>/FORWARD\s*AIR/i.test(a.carrier||''));
-  if(fa&&o.vendor){o.vendor=`${HAWB_FA_PREFIX} ${o.vendor}`;o.notes.push(`Delivery Alert carrier is ${fa.carrier}, vendor set to "${o.vendor}"`);}
+  // VENDOR: "EFW <bill-to>", with "FA " in front only when a Delivery Alert confirms Forward Air
+  const bill=(H.vendor||'').toUpperCase().replace(/\s+/g,' ').trim();
+  o.vendor='';
+  if(bill){
+    const name=HAWB_VENDOR_ALIASES[bill]||bill;
+    o.vendor=`EFW ${name}`;
+    const fa=g.alerts.find(a=>/FORWARD\s*AIR/i.test(a.carrier||''));
+    if(fa)o.vendor=`FA ${o.vendor}`;
+    o.notes.push(`Vendor: ${o.vendor}${fa?' (Delivery Alert carrier is Forward Air)':''}`);
+  }
   if(o.errors.length)return o;
 
   // ── Build rows: one Grasshopper line per freight line
