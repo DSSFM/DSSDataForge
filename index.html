@@ -856,6 +856,8 @@ function hawbParseParty(raw){
 function hawbParseAlertPage(lines){
   const d={kind:'Delivery Alert',warnings:[],freight:[],total:null,cons:{},ship:{}};
   d.page=hawbPageNo(lines.map(l=>l.text).join('\n'));
+  const mi=lines.findIndex(l=>hawbItem(l,/^Carrier$/));
+  d.carrier=mi>=0?hawbValBelow(lines,mi,/^Carrier$/,40):'';
   const ai=lines.findIndex(l=>hawbItem(l,/^Airbill #$/));
   if(ai>=0){d.waybill=(hawbValBelow(lines,ai,/^Airbill #$/,40).match(/\d{8,12}/)||[''])[0];
     d.total={pieces:hawbNum(hawbValBelow(lines,ai,/^PCS$/,30)),weight:hawbNum(hawbValBelow(lines,ai,/^Weight$/,30))};}
@@ -934,6 +936,7 @@ function hawbDocsFromPages(pages){
 
 // ── Merge files by waybill, check weight/dims, build Grasshopper rows ───
 const HAWB_REQ=['PO_NUMBER','FIRST_NAME','LAST_NAME','ADDRESS1','CITY','STATE','ZIP','PHONE1','ITEM_SKU','ITEM_DESCRIPTION','WEIGHT','QUANTITY','VENDOR','SERVICE_LEVEL','STOP_TYPE'];
+const HAWB_FA_PREFIX='FA EFW'; // vendor prefix when the Delivery Alert carrier is Forward Air
 const HAWB_MAX_DIM=120;        // inches; any side over this gets a "verify" warning
 const HAWB_MAX_PIECE_LBS=2500; // per piece; heavier gets a "verify" warning
 function hawbDims(r){return[r.length,r.width,r.height];}
@@ -1019,6 +1022,10 @@ function hawbCheckOrder(g){
   else if(!HAWB_SVC_MAP[svcRaw.toLowerCase()])o.warns.push(`Service code ${svcRaw} is not in the service map, sent as "${svc}"`);
   if(!H.vendor)o.errors.push('Bill-to name (VENDOR) missing');
   o.service=svcRaw;o.svc=svc;
+  // Freight picked up from Forward Air (carrier on the Delivery Alert): vendor reads "FA EFW <bill-to>"
+  o.vendor=H.vendor||'';
+  const fa=g.alerts.find(a=>/FORWARD\s*AIR/i.test(a.carrier||''));
+  if(fa&&o.vendor){o.vendor=`${HAWB_FA_PREFIX} ${o.vendor}`;o.notes.push(`Delivery Alert carrier is ${fa.carrier}, vendor set to "${o.vendor}"`);}
   if(o.errors.length)return o;
 
   // ── Build rows: one Grasshopper line per freight line
@@ -1030,7 +1037,8 @@ function hawbCheckOrder(g){
   let notes='';
   if(H.requested){const m=H.requested.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+between\s+(.+))?/);notes=m?`Requested Delivery: ${m[1]}${m[2]?` between ${m[2]}`:''}`:`Requested Delivery: ${H.requested}`;}
   else{const m=(H.instructions||'').match(/deliver(?:y)?\s+(?:on|by)\s+(\d{1,2}[-\/]\d{1,2}(?:[-\/]\d{2,4})?)/i);if(m)notes=`Requested Delivery: ${m[1]}`;}
-  const po=`${g.waybill} ${svcRaw}`.trim();
+  const wbFmt=g.waybill.length>3?`${g.waybill.slice(0,3)} ${g.waybill.slice(3)}`:g.waybill;
+  const po=`${wbFmt} ${svcRaw}`.trim();
   for(const r of F){
     const{sku,desc}=hawbSplitSku(r.desc);
     const fieldMap={
@@ -1039,7 +1047,7 @@ function hawbCheckOrder(g){
       EMAIL:c.email||'',ITEM_SKU:sku,ITEM_SERIAL_NUMBER:'',ITEM_DESCRIPTION:desc,ITEM_CATEGORY:'',
       WEIGHT:hawbFmt(r.weight/r.pieces),CUBE:'',LENGTH:hawbFmt(r.length),WIDTH:hawbFmt(r.width),HEIGHT:hawbFmt(r.height),
       COMMODITY_TYPE:'',RETAIL_VALUE:'',INSURANCE_COVERAGE_AMOUNT:'',QUANTITY:String(r.pieces),
-      LINKS:'',VENDOR:H.vendor,NOTES:notes,DRIVER_NOTES:H.instructions||'',SERVICE_LEVEL:svc,
+      LINKS:'',VENDOR:o.vendor,NOTES:notes,DRIVER_NOTES:H.instructions||'',SERVICE_LEVEL:svc,
       PICKUP_ADDRESS1:'',PICKUP_ADDRESS2:'',PICKUP_CITY:'',PICKUP_STATE:'',PICKUP_ZIP:'',PICKUP_COMPANY:'',
       PICKUP_CONTACT_NAME:'',PICKUP_CONTACT_PHONE:'',PICKUP_CONTACT_EMAIL:'',STOP_TYPE:'1',
       MASK_CUSTOMER_INFORMATION:'',HANDLING_INSTRUCTION:'',GENERAL_CUSTOM_FIELD:'',INSPECT_UPON_ARRIVAL:'',REQUESTED_HUB:''
