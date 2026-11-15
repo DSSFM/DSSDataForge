@@ -35,6 +35,8 @@
   .ss-banner:hover{border-color:var(--red);background:linear-gradient(135deg,rgba(239,91,91,0.22),rgba(240,160,80,0.15));}
   .hawb-banner{background:linear-gradient(135deg,rgba(0,180,216,0.15),rgba(91,141,239,0.1));border:1px solid rgba(0,180,216,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
   .hawb-banner:hover{border-color:#00b4d8;background:linear-gradient(135deg,rgba(0,180,216,0.22),rgba(91,141,239,0.15));}
+  .ptn-banner{background:linear-gradient(135deg,rgba(232,93,154,0.15),rgba(160,110,240,0.1));border:1px solid rgba(232,93,154,0.25);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all 0.2s;}
+  .ptn-banner:hover{border-color:#e85d9a;background:linear-gradient(135deg,rgba(232,93,154,0.22),rgba(160,110,240,0.15));}
   .fp-banner-title{font-size:14px;font-weight:700;color:var(--purple);display:flex;align-items:center;gap:8px;margin-bottom:4px;}
   .fp-banner-desc{font-size:11px;color:var(--text-dim);line-height:1.5;}
   .fp-badge{font-size:9px;background:var(--purple);color:#fff;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.5px;}
@@ -173,6 +175,10 @@
         <div class="fp-banner-title" style="color:#00b4d8;">📋 EFW HAWB <span class="fp-badge" style="background:#00b4d8;">PDF→CSV</span></div>
         <div class="fp-banner-desc">EFW HAWB / Delivery Alert PDFs → Grasshopper Import CSV.</div>
       </div>
+      <div class="ptn-banner" onclick="openPTN()" style="margin-top:8px;">
+        <div class="fp-banner-title" style="color:#e85d9a;">🧭 Principle / NTime <span class="fp-badge" style="background:var(--red);">OKC ONLY</span></div>
+        <div class="fp-banner-desc">Area Route Manifest PDFs → sorted by route, route on every job. OKC hub only.</div>
+      </div>
     </div>
     <div class="sidebar-section">
       <h3>Import Files</h3>
@@ -232,7 +238,7 @@
     </div>
     <div class="table-container" id="tableContainer">
       <div class="empty-state"><div style="font-size:56px;opacity:0.3;">🚚</div><h2>DataForge</h2>
-        <p>Drop a CSV file into the sidebar to get started, or run <strong style="color:var(--purple);">FragilePak</strong>, <strong style="color:var(--orange);">EFM</strong>, <strong style="color:var(--accent);">Cato</strong>, <strong style="color:var(--green);">Sally</strong>, <strong style="color:var(--red);">Shoe Show</strong>, <strong style="color:#00b4d8;">EFW HAWB</strong>, <strong style="color:#f5c400;">Ryder</strong>, or <strong style="color:#2ec4b6;">CX Logistics</strong> to process your files.</p>
+        <p>Drop a CSV file into the sidebar to get started, or run <strong style="color:var(--purple);">FragilePak</strong>, <strong style="color:var(--orange);">EFM</strong>, <strong style="color:var(--accent);">Cato</strong>, <strong style="color:var(--green);">Sally</strong>, <strong style="color:var(--red);">Shoe Show</strong>, <strong style="color:#00b4d8;">EFW HAWB</strong>, <strong style="color:#f5c400;">Ryder</strong>, <strong style="color:#2ec4b6;">CX Logistics</strong>, or <strong style="color:#e85d9a;">Principle / NTime</strong> (OKC only) to process your files.</p>
       </div>
     </div>
     <div class="statusbar" id="statusbar" style="display:none;">
@@ -1158,6 +1164,341 @@ async function hawbRun(){
 
 function hawbPreview(){const{headers,data,name}=hawbState.output;files.push({name,ext:'csv',headers:[...headers],data:data.map(r=>[...r])});selectFile(files.length-1);renderFileList();closeModal();showToast(`Loaded "${name}" for preview`,'success');}
 function hawbExport(){const{headers,data,name}=hawbState.output;downloadCSV(headers,data,name,GH_DESC_ROW);closeModal();}
+
+
+// ═══════ PRINCIPLE / NTIME MANIFESTS (OKC ONLY) ═══════
+// Reads Principle and NTime "AREA ROUTE MANIFEST" PDFs, finds the local stop address for every job,
+// assigns a route from the OKC zip cross reference (markdown), and rebuilds the manifest sorted by route.
+// Every output page is labeled PRINCIPLE or NTIME and carries the OKC ONLY disclaimer.
+const PTN_REF_KEY='df_ptn_zipref_v1';
+const PTN_ROUTE_RE=/\b([A-Z]{2,4}-[A-Z0-9]{2,6}-ND)\b/i;
+const PTN_TIE_PRIORITY=['OKC-NORM-ND','OKC-OKC6-ND','OKC-180-ND'];
+const PTN_DISCLAIMER='OKC ONLY: routes come from the OKC zip cross reference. Do not use this process for Tulsa or Amarillo manifests.';
+const PTN_CHECK='CHECK - NO ROUTE';
+let ptnFiles=[];let ptnRef=null;let ptnState={};
+
+function ptnNorm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function ptnRoute(s){const m=String(s||'').match(PTN_ROUTE_RE);return m?m[1].toUpperCase():null;}
+function ptnIsOK(zip){const z=parseInt(zip,10);return z>=73000&&z<=74999;}
+function ptnAscii(s){return String(s||'').replace(/[–—]/g,'-').replace(/[^\x20-\x7E]/g,'');}
+
+// ---------- Zip cross reference (markdown) ----------
+function ptnParseRef(text){
+  const ref={zipOverrides:{},zipTable:{},addrHistory:{},customers:[],aliases:{},drivers:{}};
+  const classify=h=>{const t=h.toLowerCase();
+    if(/tie|chang|order of|substitut|how to|example/.test(t))return 'ignore';
+    if(/customer/.test(t))return 'customer';
+    if(/override/.test(t))return 'override';
+    if(/same route|different code|alias/.test(t))return 'alias';
+    if(/driver/.test(t))return 'driver';
+    if(/address/.test(t))return 'address';
+    if(/zip/.test(t))return 'zip';
+    return 'other';};
+  const addZip=(z,r)=>{(ref.zipTable[z]=ref.zipTable[z]||[]);if(!ref.zipTable[z].includes(r))ref.zipTable[z].push(r);};
+  let kind='other';let head=null;
+  for(const raw of String(text).replace(/\r/g,'').split('\n')){
+    const line=raw.trim();
+    const hm=line.match(/^#{1,6}\s+(.*)$/);
+    if(hm){kind=classify(hm[1]);head=null;continue;}
+    if(line.startsWith('|')){
+      const cells=line.replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+      if(cells.every(c=>c===''||/^:?-{2,}:?$/.test(c)))continue;
+      if(!head){head=cells.map(c=>c.toLowerCase());continue;}
+      ptnTableRow(ref,kind,head,cells,addZip);continue;
+    }
+    head=null;
+    if(!line)continue;
+    // rules.json pasted into the markdown: switch on its section keys
+    const jk=line.match(/"(zip_overrides|zip_routes|address_routes|valid_routes|customer[a-z_]*)"\s*:/i);
+    if(jk){const k=jk[1].toLowerCase();kind=k==='zip_overrides'?'override':k==='zip_routes'?'zip':k==='address_routes'?'address':'ignore';}
+    if(kind!=='zip'&&kind!=='override'&&kind!=='address')continue;
+    const addrPairs=[...line.matchAll(/"(\d{1,6})\s*[|_ ,-]\s*(\d{5})"\s*:\s*"([A-Z]{2,4}-[A-Z0-9]{2,6}-ND)"/gi)];
+    if(addrPairs.length){for(const p of addrPairs)ref.addrHistory[`${p[1]}|${p[2]}`]=p[3].toUpperCase();continue;}
+    const zipPairs=[...line.matchAll(/"(\d{5})"\s*:\s*"([A-Z]{2,4}-[A-Z0-9]{2,6}-ND)"/gi)];
+    if(zipPairs.length){for(const p of zipPairs){if(kind==='override')ref.zipOverrides[p[1]]=p[2].toUpperCase();else addZip(p[1],p[2].toUpperCase());}continue;}
+    if(kind==='address')continue;
+    const r=ptnRoute(line);if(!r)continue;
+    const before=line.slice(0,line.toUpperCase().indexOf(r));
+    for(const z of (before.match(/\b\d{5}\b/g)||[])){if(kind==='override')ref.zipOverrides[z]=r;else addZip(z,r);}
+  }
+  return ref;
+}
+function ptnTableRow(ref,kind,head,cells,addZip){
+  if(kind==='ignore')return;
+  const idx=re=>head.findIndex(h=>re.test(h));
+  const get=re=>{const i=idx(re);return i>=0?(cells[i]||''):'';};
+  if(kind==='customer'){
+    const name=get(/customer|name/);const route=ptnRoute(get(/route|goes/))||ptnRoute(cells.join(' '));
+    if(name&&route)ref.customers.push({name,nameN:ptnNorm(name),addr:get(/address|zip/),route});return;}
+  if(kind==='alias'){
+    const from=ptnRoute(get(/code on|from|stop/))||ptnRoute(cells[0]);const to=ptnRoute(get(/treat|target|goes|^to\b/))||ptnRoute(cells[1]);
+    if(from&&to&&from!==to)ref.aliases[from]=to;return;}
+  if(kind==='driver'){
+    const route=ptnRoute(get(/route/));if(!route)return;
+    const id=get(/\bid\b/);const ni=head.findIndex(h=>/driver|name/.test(h)&&!/\bid\b/.test(h));
+    ref.drivers[route]={id,name:ni>=0?cells[ni]:''};return;}
+  const zipCell=get(/zip/);const route=ptnRoute(get(/route|goes/));
+  if(kind==='address'){
+    const addr=get(/street|number|address/);const num=(addr.match(/^\s*(\d{1,6})/)||[])[1];const zip=(zipCell.match(/\b\d{5}\b/)||[])[0];
+    if(num&&zip&&route)ref.addrHistory[`${num}|${zip}`]=route;return;}
+  if(!route||!zipCell)return;
+  for(const z of (zipCell.match(/\b\d{5}\b/g)||[])){if(kind==='override')ref.zipOverrides[z]=route;else addZip(z,route);}
+}
+function ptnRefStats(ref){return{overrides:Object.keys(ref.zipOverrides).length,zips:Object.keys(ref.zipTable).length,addresses:Object.keys(ref.addrHistory).length,customers:ref.customers.length,aliases:Object.keys(ref.aliases).length,drivers:Object.keys(ref.drivers).length};}
+
+// ---------- Route resolution: customer > zip override > address history > zip table, then aliases ----------
+function ptnResolve(stop,ref){
+  let route=null,rule='',tie=false;
+  const nN=ptnNorm(stop.name);
+  for(const c of ref.customers){
+    if(!c.nameN||!nN)continue;
+    const hit=nN.includes(c.nameN)||(nN.length>=10&&c.nameN.startsWith(nN));
+    if(!hit)continue;
+    const zc=(c.addr.match(/\b\d{5}\b/)||[])[0];if(zc&&zc!==stop.zip)continue;
+    route=c.route;rule='customer rule';break;
+  }
+  if(!route&&ref.zipOverrides[stop.zip]){route=ref.zipOverrides[stop.zip];rule='zip override';}
+  if(!route){const num=(stop.addr.match(/^\s*(\d{1,6})/)||[])[1];if(num&&ref.addrHistory[`${num}|${stop.zip}`]){route=ref.addrHistory[`${num}|${stop.zip}`];rule='address history';}}
+  if(!route&&ref.zipTable[stop.zip]){
+    const c=ref.zipTable[stop.zip].filter(r=>!/-HOT/i.test(r));
+    if(c.length===1){route=c[0];rule='zip table';}
+    else if(c.length>1){route=PTN_TIE_PRIORITY.find(p=>c.includes(p))||c[0];tie=!PTN_TIE_PRIORITY.includes(route);rule=tie?'zip table (tie, check)':'zip table (tie-break)';}
+  }
+  for(let i=0;route&&ref.aliases[route]&&i<4;i++){route=ref.aliases[route];rule+=' + alias';}
+  return{route,rule,tie};
+}
+
+// ---------- Manifest reader (pdf.js text positions) ----------
+function ptnLines(items){
+  const its=items.filter(it=>it.str&&it.str.trim()).map(it=>({x:it.transform[4],y:it.transform[5],h:Math.abs(it.transform[3])||8,str:it.str.trim()}));
+  its.sort((a,b)=>b.y-a.y||a.x-b.x);
+  const lines=[];
+  for(const it of its){const l=lines.find(l=>Math.abs(l.y-it.y)<1.5);if(l)l.items.push(it);else lines.push({y:it.y,h:it.h,items:[it]});}
+  lines.forEach(l=>{l.items.sort((a,b)=>a.x-b.x);l.text=l.items.map(i=>i.str).join(' ');});
+  return lines.sort((a,b)=>b.y-a.y);
+}
+function ptnCol(line,x0,x1){return line?line.items.filter(i=>i.x>=x0-2&&i.x<x1-2).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim():'';}
+function ptnCityZip(s){const m=String(s).match(/^(.*?),?\s*(\d{5})(?:-\d{4})?\b/);return m?{city:m[1].replace(/,\s*$/,'').trim(),zip:m[2]}:{city:String(s).trim(),zip:''};}
+
+async function ptnReadManifest(buffer){
+  const doc=await window.pdfjsLib.getDocument({data:buffer}).promise;
+  const out={pages:[],jobs:[],driverText:'',runDate:'',header:null,codes:[]};
+  let cols={origin:52.7,dest:182.2,s:311.6,times:325.9,code:354.7,pcs:390};
+  let last=null;
+  for(let pi=1;pi<=doc.numPages;pi++){
+    const pg=await doc.getPage(pi);const view=pg.view;const tc=await pg.getTextContent();
+    const lines=ptnLines(tc.items);
+    out.pages.push({w:view[2]-view[0],h:view[3]-view[1],x0:view[0],y0:view[1]});
+    let dashY=null;let headTop=null;
+    for(const l of lines){
+      if(/^Driver Number:/i.test(l.text)&&!out.driverText)out.driverText=l.text.replace(/^Driver Number:\s*/i,'').trim();
+      if(/^Run Date:/i.test(l.text)&&!out.runDate)out.runDate=l.text.replace(/^Run Date:\s*/i,'').trim();
+      if(/^JOB#/.test(l.text)){headTop=l.y+l.h+1;
+        const f=re=>{const it=l.items.find(i=>re.test(i.str));return it?it.x:null;};
+        cols.origin=f(/^ORIGIN/)??cols.origin;cols.dest=f(/^DESTINATION/)??cols.dest;cols.s=f(/^S$/)??cols.s;cols.times=f(/^TIMES/)??cols.times;}
+      if(dashY===null&&/^-{20,}$/.test(l.text)){dashY=l.y;if(!out.header&&headTop)out.header={page:pi-1,top:headTop,bottom:l.y-2};}
+    }
+    const body=lines.filter(l=>dashY===null||l.y<dashY-1);
+    const isJob=l=>l.items[0].x<cols.origin-5&&/^\d{4,8}$/.test(l.items[0].str);
+    // lines before the first job on this page continue the last job of the previous page
+    const firstJob=body.findIndex(isJob);
+    const cont=firstJob<0?body:body.slice(0,firstJob);
+    if(last&&cont.length){last.segs.push({page:pi-1,top:cont[0].y+cont[0].h+2,bottom:cont[cont.length-1].y-4});last.notes.push(...cont.map(l=>l.text));}
+    if(firstJob<0)continue;
+    for(let k=firstJob;k<body.length;k++){
+      if(!isJob(body[k]))continue;
+      let e=k+1;while(e<body.length&&!isJob(body[e]))e++;
+      const bl=body.slice(k,e);const L0=bl[0],L1=bl[1],L2=bl[2];
+      const job={
+        job:L0.items[0].str,page:pi-1,
+        origin:{name:ptnCol(L0,cols.origin,cols.dest),addr:ptnCol(L1,cols.origin,cols.dest),...ptnCityZip(ptnCol(L2,cols.origin,cols.dest))},
+        dest:{name:ptnCol(L0,cols.dest,cols.s),addr:ptnCol(L1,cols.dest,cols.s),...ptnCityZip(ptnCol(L2,cols.dest,cols.s))},
+        svc:ptnCol(L1,cols.s,cols.times).slice(0,1).toUpperCase(),
+        code:(ptnCol(L1,cols.times,cols.pcs||9999).split(' ')[1]||''),
+        notes:bl.slice(4).map(l=>l.text),
+        segs:[{page:pi-1,top:L0.y+L0.h+2,bottom:bl[bl.length-1].y-4}],
+        order:out.jobs.length
+      };
+      if(job.code)out.codes.push(job.code);
+      out.jobs.push(job);last=job;k=e-1;
+    }
+  }
+  return{doc,data:out};
+}
+function ptnDetectType(m){
+  const d=m.driverText.toUpperCase();
+  if(/N\s*-?\s*TIME/.test(d))return 'NTIME';
+  if(/^\d+\s*-\s*OKC\b/.test(d))return 'PRINCIPLE';
+  const codes=m.codes.join(' ').toUpperCase();
+  if(/\b(DFW-|HOU-|DFWOK)/.test(codes))return 'PRINCIPLE';
+  if(/\bOKC\d+\b/.test(codes)||/^OKC\d+/.test(d))return 'NTIME';
+  return null;
+}
+
+// ---------- Build the sorted PDF ----------
+async function ptnLoadPdfLib(){
+  if(window.PDFLib)return true;
+  const srcs=['https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js','https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js','https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js'];
+  for(const src of srcs){try{await new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});if(window.PDFLib)return true;}catch(e){}}
+  return false;
+}
+function ptnRouteSort(a,b){if(a===PTN_CHECK)return 1;if(b===PTN_CHECK)return -1;return a.localeCompare(b,undefined,{numeric:true});}
+
+async function ptnBuildPdf(srcBytes,m,stops,type,ref){
+  const{PDFDocument,StandardFonts,rgb}=window.PDFLib;
+  const src=await PDFDocument.load(srcBytes);
+  const out=await PDFDocument.create();
+  const fB=await out.embedFont(StandardFonts.HelveticaBold);const fR=await out.embedFont(StandardFonts.Helvetica);
+    const W=612,H=792,MX=18,SC=0.94,BOTTOM=34;
+  const typeLabel=type==='NTIME'?'NTIME':'PRINCIPLE';
+  const typeColor=type==='NTIME'?rgb(0.05,0.45,0.55):rgb(0.42,0.22,0.70);
+  const red=rgb(0.75,0.12,0.12),dark=rgb(0.12,0.12,0.14),grey=rgb(0.45,0.45,0.48);
+  const full=await out.embedPages(src.getPages());
+  const{pushGraphicsState,popGraphicsState,rectangle,clip,endPath}=window.PDFLib;
+  // draw one crop (source y from bottom..top) with its bottom edge at y on the output page
+  function drawSeg(page,s,y){const w=src.getPages()[s.page].getWidth()*SC;const h=(s.top-s.bottom)*SC;
+    page.pushOperators(pushGraphicsState(),rectangle(MX,y,w,h),clip(),endPath());
+    page.drawPage(full[s.page],{x:MX,y:y-s.bottom*SC,xScale:SC,yScale:SC});
+    page.pushOperators(popGraphicsState());}
+  const fit=(t,f,size,maxW)=>{t=ptnAscii(t);while(t.length>3&&f.widthOfTextAtSize(t,size)>maxW)t=t.slice(0,-2);return t;};
+  function disclaimer(page,y){page.drawRectangle({x:MX,y:y-3,width:W-2*MX,height:13,color:rgb(1,0.92,0.92),borderColor:red,borderWidth:0.75});page.drawText(PTN_DISCLAIMER,{x:MX+5,y:y+0.5,size:7.5,font:fB,color:red});}
+  function footer(page,label){page.drawText(ptnAscii(`DataForge | ${typeLabel} manifest | Run Date ${m.runDate} | ${label}`),{x:MX,y:14,size:7,font:fR,color:grey});page.drawText('OKC ONLY',{x:W-MX-fB.widthOfTextAtSize('OKC ONLY',8),y:14,size:8,font:fB,color:red});}
+
+  // Summary page
+  const groups={};for(const s of stops)(groups[s.route]=groups[s.route]||[]).push(s);
+  const routes=Object.keys(groups).sort(ptnRouteSort);
+  {
+    const p=out.addPage([W,H]);let y=H-40;
+    p.drawText(typeLabel,{x:MX,y,size:24,font:fB,color:typeColor});
+    p.drawText(fit(`Route Summary | Run Date ${m.runDate} | Driver # ${m.driverText}`,fR,10,W-2*MX-170),{x:MX+170,y:y+6,size:10,font:fR,color:dark});
+    y-=22;disclaimer(p,y);y-=26;
+    const cx=[MX,MX+130,MX+300,MX+360,MX+430];
+    ['ROUTE','DRIVER','STOPS','PICKUPS','DELIVERIES'].forEach((h,i)=>p.drawText(h,{x:cx[i],y,size:8,font:fB,color:grey}));y-=4;
+    p.drawLine({start:{x:MX,y},end:{x:W-MX,y},thickness:0.5,color:grey});y-=13;
+    for(const r of routes){const g=groups[r];const d=ref.drivers[r];const pu=g.filter(s=>s.kind==='PICKUP').length;
+      const col=r===PTN_CHECK?red:dark;
+      p.drawText(r,{x:cx[0],y,size:9.5,font:fB,color:col});p.drawText(fit(d?`${d.name} (${d.id})`:'',fR,9,160),{x:cx[1],y,size:9,font:fR,color:dark});
+      p.drawText(String(g.length),{x:cx[2],y,size:9.5,font:fB,color:col});p.drawText(String(pu),{x:cx[3],y,size:9,font:fR,color:dark});p.drawText(String(g.length-pu),{x:cx[4],y,size:9,font:fR,color:dark});y-=14;}
+    y-=4;p.drawLine({start:{x:MX,y:y+8},end:{x:W-MX,y:y+8},thickness:0.5,color:grey});
+    p.drawText(`TOTAL  ${stops.length} jobs on ${routes.filter(r=>r!==PTN_CHECK).length} routes`,{x:MX,y:y-4,size:9.5,font:fB,color:dark});y-=28;
+    const chk=stops.filter(s=>s.route===PTN_CHECK||s.tie);
+    if(chk.length){p.drawText(`CHECK THESE (${chk.length})`,{x:MX,y,size:11,font:fB,color:red});y-=15;
+      for(const s of chk){if(y<BOTTOM+10){p.drawText('...more in the CHECK section',{x:MX,y,size:8,font:fR,color:grey});break;}
+        p.drawText(fit(`${s.job}  ${s.kind}  ${s.stop.name} | ${s.stop.addr}, ${s.stop.city} ${s.stop.zip}  ->  ${s.reason}`,fR,8.5,W-2*MX),{x:MX,y,size:8.5,font:fR,color:dark});y-=12;}}
+    footer(p,'summary');
+  }
+
+  // Route pages
+  const hdr=m.header||null;const hdrH=m.header?(m.header.top-m.header.bottom)*SC:0;
+  for(const r of routes){
+    const g=groups[r];const d=ref.drivers[r];const isChk=r===PTN_CHECK;
+    let page=null,y=0,pageNo=0;
+    const newPage=()=>{page=out.addPage([W,H]);pageNo++;y=H-36;
+      page.drawText(typeLabel,{x:MX,y,size:20,font:fB,color:typeColor});
+      const rt=r+(pageNo>1?' (cont.)':'');const rs=18;
+      page.drawText(rt,{x:W-MX-fB.widthOfTextAtSize(rt,rs),y,size:rs,font:fB,color:isChk?red:dark});
+      y-=14;
+      page.drawText(fit(`${d?`Driver: ${d.name} (${d.id})  |  `:''}${g.length} job${g.length===1?'':'s'}  |  Run Date ${m.runDate}  |  Manifest Driver # ${m.driverText}`,fR,8.5,W-2*MX),{x:MX,y,size:8.5,font:fR,color:dark});
+      y-=18;disclaimer(page,y);y-=8;
+      if(hdr){y-=hdrH;drawSeg(page,hdr,y);y-=4;}
+      footer(page,`${r} | page ${pageNo}`);
+    };
+    newPage();
+    for(const s of g){
+      const segs=s.segs.map(sg=>({sg,h:(sg.top-sg.bottom)*SC}));
+      const need=14+segs.reduce((a,b)=>a+b.h,0)+6;
+      if(y-need<BOTTOM)newPage();
+      const barCol=isChk?red:(s.tie?rgb(0.80,0.45,0.05):dark);
+      y-=12;page.drawRectangle({x:MX,y:y-1,width:W-2*MX,height:11.5,color:barCol});
+      const tag=isChk?`${PTN_CHECK}  |  ${s.kind}  |  ${s.stop.city} ${s.stop.zip}  |  ${s.reason}`:`${s.route}  |  ${s.kind}  |  ${s.stop.city} ${s.stop.zip}  |  ${s.rule}`;
+      page.drawText(fit(tag,fB,8,W-2*MX-10),{x:MX+4,y:y+1.5,size:8,font:fB,color:rgb(1,1,1)});
+      y-=2;
+      for(const sg of segs){y-=sg.h;drawSeg(page,sg.sg,y);}
+      y-=6;
+    }
+  }
+  return await out.save();
+}
+
+// ---------- Process ----------
+function ptnStopFor(j){
+  if(j.dest.zip&&ptnIsOK(j.dest.zip))return{kind:j.svc==='R'?'RETURN':'DELIVERY',stop:j.dest};
+  if(j.origin.zip&&ptnIsOK(j.origin.zip))return{kind:'PICKUP',stop:j.origin};
+  return{kind:'DELIVERY',stop:j.dest,outOfState:true};
+}
+function ptnLoadSavedRef(){try{const raw=localStorage.getItem(PTN_REF_KEY);if(!raw)return null;const o=JSON.parse(raw);return o&&o.text?o:null;}catch(e){return null;}}
+function ptnSaveRef(o){try{localStorage.setItem(PTN_REF_KEY,JSON.stringify(o));}catch(e){}}
+function ptnRefStatusHtml(o){
+  if(!o)return '<span style="color:var(--orange);">No zip reference loaded yet. Drop the zip cross reference .md file.</span>';
+  const st=ptnRefStats(ptnParseRef(o.text));
+  const warn=st.zips===0?'<div style="color:var(--orange);margin-top:4px;">⚠ Full zip table is empty in this file. Only customer rules, zip overrides and address history will match; everything else lands in CHECK.</div>':'';
+  return `<span style="color:var(--green);">✓ ${esc(o.name)}</span> <span style="color:var(--text-muted);">(saved ${esc(o.savedAt||'')})</span><div style="color:var(--text-dim);margin-top:2px;">${st.zips} zips · ${st.overrides} overrides · ${st.addresses} addresses · ${st.customers} customer rules · ${st.aliases} aliases · ${st.drivers} drivers</div>${warn}`;
+}
+function openPTN(){
+  ptnFiles=[];
+  openModal(`<h3 style="color:#e85d9a;">🧭 Principle / NTime Manifests <span class="fp-badge" style="background:var(--red);">OKC ONLY</span></h3>
+<div style="border:1px solid var(--red);background:var(--red-bg);color:var(--red);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:12px;"><strong>OKC ONLY.</strong> This process routes stops with the OKC zip cross reference. Do not run Tulsa or Amarillo manifests through it. A manifest whose Driver Number is not an OKC code is rejected.</div>
+<p>Drop the Principle and/or NTime manifest PDFs. Each job's local address is found, a route is assigned from the zip reference, and the manifest is rebuilt sorted by route with the route on every job.</p>
+<div class="input-group"><label>Zip Cross Reference (.md)</label><div class="dropzone" id="ptnRefDrop" style="padding:12px;" onclick="document.getElementById('ptnRefInput').click()"><div class="dropzone-text" id="ptnRefName">Drop zip reference .md here or click to replace</div></div><input type="file" id="ptnRefInput" accept=".md,.markdown,.txt" style="display:none;"><div id="ptnRefStatus" style="font-size:12px;margin-top:6px;">${ptnRefStatusHtml(ptnLoadSavedRef())}</div></div>
+<div class="input-group"><label>Manifest PDFs</label><div class="dropzone" id="ptnDrop" style="padding:16px;" onclick="document.getElementById('ptnFileInput').click()"><div class="dropzone-text" id="ptnFileName">Drop PDFs here or click to browse</div></div><input type="file" id="ptnFileInput" accept=".pdf" multiple style="display:none;"></div>
+<div class="input-group"><label>Manifest Type</label><select class="input" id="ptnType"><option value="AUTO">Auto-detect</option><option value="PRINCIPLE">Principle</option><option value="NTIME">NTime</option></select></div>
+<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="ptnRun()">⚡ Run Process</button></div>`);
+  document.getElementById('ptnRefInput').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const text=await f.text();const st=ptnRefStats(ptnParseRef(text));
+    if(!st.zips&&!st.overrides&&!st.customers&&!st.addresses){showToast('No zip/route rules found in that file','error');return;}
+    const o={name:f.name,text,savedAt:new Date().toLocaleString()};ptnSaveRef(o);ptnRef=o;
+    document.getElementById('ptnRefName').textContent=f.name;document.getElementById('ptnRefName').style.color='var(--green)';
+    document.getElementById('ptnRefStatus').innerHTML=ptnRefStatusHtml(o);showToast('Zip reference loaded','success');});
+  document.getElementById('ptnFileInput').addEventListener('change',e=>{ptnFiles=[...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));const el=document.getElementById('ptnFileName');el.textContent=ptnFiles.length?ptnFiles.map(f=>f.name).join(', '):'Drop PDFs here or click to browse';el.style.color=ptnFiles.length?'var(--green)':'';});
+  enableDropzone('ptnRefDrop','ptnRefInput','ptnRefName','.md,.markdown,.txt');
+  enableDropzone('ptnDrop','ptnFileInput','ptnFileName','.pdf');
+}
+async function ptnRun(){
+  const refObj=ptnRef||ptnLoadSavedRef();
+  if(!refObj){showToast('Load the zip cross reference .md first','error');return;}
+  if(!ptnFiles.length){showToast('Add at least one manifest PDF','error');return;}
+  const forced=document.getElementById('ptnType').value;
+  const files=[...ptnFiles];
+  const log=[];const add=(cls,text)=>log.push({cls,text});
+  openModal(`<h3 style="color:#e85d9a;">🧭 Principle / NTime — Processing</h3><p>Reading manifests...</p>`);
+  add('log-head','PRINCIPLE / NTIME PROCESS — START (OKC ONLY)');
+  const ref=ptnParseRef(refObj.text);const st=ptnRefStats(ref);
+  add('log-info',`Zip reference: ${esc(refObj.name)} | ${st.zips} zips, ${st.overrides} overrides, ${st.addresses} addresses, ${st.customers} customer rules`);
+  if(!st.zips)add('log-warn','⚠ Full zip table is empty. Stops not covered by an override, customer rule or address history go to CHECK.');
+  if(!(await ssLoadPdfJs())){add('log-warn','⚠ Could not load pdf.js (needs internet).');ptnState={outputs:[]};return ptnShowLog(log,true);}
+  if(!(await ptnLoadPdfLib())){add('log-warn','⚠ Could not load pdf-lib (needs internet).');ptnState={outputs:[]};return ptnShowLog(log,true);}
+  const outputs=[];
+  for(const file of files){
+    add('log-head',`📄 ${esc(file.name)}`);
+    let bytes,parsed;
+    try{bytes=new Uint8Array(await file.arrayBuffer());parsed=await ptnReadManifest(bytes.slice(0));}catch(e){add('log-warn',`⚠ Could not read PDF: ${esc(e.message)}`);continue;}
+    const m=parsed.data;
+    if(!/OKC/i.test(m.driverText)){add('log-warn',`⚠ Skipped. Driver Number "${esc(m.driverText||'not found')}" is not an OKC manifest. This process is OKC ONLY.`);continue;}
+    const type=forced!=='AUTO'?forced:ptnDetectType(m);
+    if(!type){add('log-warn','⚠ Could not tell if this is Principle or NTime. Pick the type and run again.');continue;}
+    add('log-ok',`✓ ${type==='NTIME'?'NTime':'Principle'} manifest | Driver # ${esc(m.driverText)} | Run Date ${esc(m.runDate)} | ${m.jobs.length} jobs on ${m.pages.length} pages`);
+    if(!m.jobs.length){add('log-warn','⚠ No jobs found on this manifest.');continue;}
+    const stops=m.jobs.map(j=>{const sf=ptnStopFor(j);const s={...j,...sf,route:PTN_CHECK,rule:'',reason:'',tie:false};
+      if(!s.stop.zip){s.reason='no zip found';return s;}
+      if(sf.outOfState){s.reason=`zip ${s.stop.zip} is outside Oklahoma`;return s;}
+      const r=ptnResolve(s.stop,ref);if(r.route){s.route=r.route;s.rule=r.rule;s.tie=r.tie;if(r.tie)s.reason='zip fits more than one route';}else s.reason=`no rule for zip ${s.stop.zip}`;return s;});
+    stops.sort((a,b)=>ptnRouteSort(a.route,b.route)||a.stop.zip.localeCompare(b.stop.zip)||a.stop.city.localeCompare(b.stop.city)||a.stop.addr.localeCompare(b.stop.addr)||a.order-b.order);
+    const byRoute={};stops.forEach(s=>byRoute[s.route]=(byRoute[s.route]||0)+1);
+    Object.keys(byRoute).sort(ptnRouteSort).forEach(r=>add(r===PTN_CHECK?'log-warn':'log-ok',`${r===PTN_CHECK?'⚠':'✓'} ${esc(r)}: ${byRoute[r]} job${byRoute[r]===1?'':'s'}`));
+    stops.filter(s=>s.route===PTN_CHECK||s.tie).forEach(s=>add('log-warn',`&nbsp;&nbsp;${esc(s.job)} ${esc(s.stop.name)}, ${esc(s.stop.city)} ${esc(s.stop.zip)}: ${esc(s.reason)}`));
+    const pu=stops.filter(s=>s.kind!=='DELIVERY').length;if(pu)add('log-info',`ℹ ${pu} pickup/return job(s) routed by the Oklahoma pickup address`);
+    try{const pdf=await ptnBuildPdf(bytes,m,stops,type,ref);
+      const d=(m.runDate||'').replace(/\//g,'-');const name=`${type==='NTIME'?'NTime':'Principle'}_Manifest_${d||'sorted'}_BY_ROUTE_OKC.pdf`;
+      outputs.push({name,pdf});add('log-ok',`✓ Built ${esc(name)}`);}
+    catch(e){add('log-warn',`⚠ Could not build PDF: ${esc(e.message)}`);}
+  }
+  ptnState={outputs};ptnShowLog(log,!outputs.length);
+}
+function ptnShowLog(log,isError){
+  const lh=log.map(l=>`<div class="log-step ${l.cls}">${l.text}</div>`).join('');const outs=(ptnState.outputs||[]);
+  const rows=outs.map((o,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);"><span style="font-size:13px;color:var(--text-dim);font-family:Consolas,monospace;">${esc(o.name)}</span><button class="btn primary" onclick="ptnDownload(${i})" style="padding:5px 12px;">💾 Download</button></div>`).join('');
+  openModal(`<h3 style="color:#e85d9a;">🧭 Principle / NTime — ${isError?'Issue Found':'Done'}</h3><div style="font-size:11px;color:var(--red);font-weight:700;margin-bottom:8px;">${PTN_DISCLAIMER}</div><div class="fp-log" style="max-height:340px;overflow-y:auto;">${lh}</div>${outs.length?`<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">${rows}</div>`:''}<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button>${outs.length>1?`<button class="btn primary" onclick="ptnDownload(-1)">💾 Download All</button>`:''}</div>`);
+}
+function ptnDownload(i){const outs=ptnState.outputs||[];const list=i<0?outs:[outs[i]];list.forEach((o,k)=>setTimeout(()=>{const blob=new Blob([o.pdf],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=o.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast(`Downloaded ${o.name}`,'success');},k*500));}
 
 
 // ═══════ CATO / SALLY / SHOE SHOW — PDF processes (unchanged from original) ═══════
