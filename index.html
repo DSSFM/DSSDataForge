@@ -1441,22 +1441,16 @@ function openPTN(){
   ptnFiles=[];
   openModal(`<h3 style="color:#e85d9a;">🧭 Principle / NTime Manifests <span class="fp-badge" style="background:var(--red);">OKC ONLY</span></h3>
 <div style="border:1px solid var(--red);background:var(--red-bg);color:var(--red);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:12px;"><strong>OKC ONLY.</strong> This process routes stops with the OKC zip cross reference. Do not run Tulsa or Amarillo manifests through it. A manifest whose Driver Number is not an OKC code is rejected.</div>
-<p>Drop the Principle and/or NTime manifest PDFs. Each job's local address is found, a route is assigned from the zip reference, and the manifest is rebuilt sorted by route with the route on every job.</p>
-<div class="input-group"><label>Zip Cross Reference (built in)</label><div class="dropzone" id="ptnRefDrop" style="padding:12px;" onclick="document.getElementById('ptnRefInput').click()"><div class="dropzone-text" id="ptnRefName">Drop a .md here only to override the built-in reference</div></div><input type="file" id="ptnRefInput" accept=".md,.markdown,.txt" style="display:none;"><div id="ptnRefStatus" style="font-size:12px;margin-top:6px;">${ptnRefStatusHtml(ptnLoadSavedRef())}</div></div>
+<p>Drop the Principle and/or NTime manifest PDFs. Each job's local address is found, a route is assigned from the built-in OKC zip reference, and the manifest is rebuilt sorted by route with the route on every job.</p>
+<div class="input-group"><label>Zip Cross Reference</label><div id="ptnRefStatus" style="font-size:12px;">${ptnRefStatusHtml(PTN_BUILTIN_REF)}</div></div>
 <div class="input-group"><label>Manifest PDFs</label><div class="dropzone" id="ptnDrop" style="padding:16px;" onclick="document.getElementById('ptnFileInput').click()"><div class="dropzone-text" id="ptnFileName">Drop PDFs here or click to browse</div></div><input type="file" id="ptnFileInput" accept=".pdf" multiple style="display:none;"></div>
 <div class="input-group"><label>Manifest Type</label><select class="input" id="ptnType"><option value="AUTO">Auto-detect</option><option value="PRINCIPLE">Principle</option><option value="NTIME">NTime</option></select></div>
 <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="ptnRun()">⚡ Run Process</button></div>`);
-  document.getElementById('ptnRefInput').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const text=await f.text();const st=ptnRefStats(ptnParseRef(text));
-    if(!st.zips&&!st.overrides&&!st.customers&&!st.addresses){showToast('No zip/route rules found in that file','error');return;}
-    const o={name:f.name,text,savedAt:new Date().toLocaleString()};ptnSaveRef(o);ptnRef=o;
-    document.getElementById('ptnRefName').textContent=f.name;document.getElementById('ptnRefName').style.color='var(--green)';
-    document.getElementById('ptnRefStatus').innerHTML=ptnRefStatusHtml(o);showToast('Zip reference loaded','success');});
   document.getElementById('ptnFileInput').addEventListener('change',e=>{ptnFiles=[...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));const el=document.getElementById('ptnFileName');el.textContent=ptnFiles.length?ptnFiles.map(f=>f.name).join(', '):'Drop PDFs here or click to browse';el.style.color=ptnFiles.length?'var(--green)':'';});
-  enableDropzone('ptnRefDrop','ptnRefInput','ptnRefName','.md,.markdown,.txt');
   enableDropzone('ptnDrop','ptnFileInput','ptnFileName','.pdf');
 }
 async function ptnRun(){
-  const refObj=ptnRef||ptnLoadSavedRef();
+  const refObj=PTN_BUILTIN_REF;
   if(!refObj){showToast('Load the zip cross reference .md first','error');return;}
   if(!ptnFiles.length){showToast('Add at least one manifest PDF','error');return;}
   const forced=document.getElementById('ptnType').value;
